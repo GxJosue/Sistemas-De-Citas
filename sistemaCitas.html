@@ -151,6 +151,60 @@
     border-radius: 5px;
     cursor: pointer;
 }
+/* Estilos para el modal de edición */
+#modal-editar {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+}
+
+#modal-editar .modal-contenido {
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    width: 80%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+}
+
+#modal-editar input {
+    width: 90%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+#modal-editar .modal-botones {
+    margin-top: 10px;
+}
+
+#modal-editar .btn-confirmar {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#modal-editar .btn-cancelar {
+    background-color: #dc3545;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
     </style>
 </head>
 <body>
@@ -269,50 +323,93 @@ function cerrarModal() {
 }
 
 
-        // Cargar lista de citas
-        function cargarListaCitas() {
-            const listaCitas = document.getElementById("lista-citas");
-            listaCitas.innerHTML = "";
+// Cargar lista de citas
+function cargarListaCitas() {
+    const listaCitas = document.getElementById("lista-citas");
+    listaCitas.innerHTML = "";
 
-            onSnapshot(collection(db, "citas"), (snapshot) => {
-                listaCitas.innerHTML = "";
-                snapshot.forEach(docSnap => {
-                    let cita = docSnap.data();
-                    let li = document.createElement("li");
-                    li.textContent = `${cita.nombre} - ${cita.telefono} - ${cita.hora}`;
+    onSnapshot(collection(db, "citas"), (snapshot) => {
+        listaCitas.innerHTML = "";
+        snapshot.forEach(docSnap => {
+            let cita = docSnap.data();
+            let citaId = docSnap.id;
 
-                    if (cita.userId === userId) {
-                        const btnEditar = document.createElement("button");
-                        btnEditar.textContent = "Editar";
-                        btnEditar.classList.add("editar-btn");
-                        btnEditar.onclick = () => editarCita(docSnap.id, cita);
+            let li = document.createElement("li");
+            li.textContent = `${cita.nombre || "No disponible"} - ${cita.telefono || "No disponible"} - ${cita.hora || "No disponible"}`;
 
-                        const btnEliminar = document.createElement("button");
-                        btnEliminar.textContent = "Eliminar";
-                        btnEliminar.classList.add("eliminar-btn");
-                        btnEliminar.onclick = () => eliminarCita(docSnap.id);
+            if (cita.userId === userId) {
+                const btnEditar = document.createElement("button");
+                btnEditar.textContent = "Editar";
+                btnEditar.classList.add("editar-btn");
+                btnEditar.onclick = () => editarCita(citaId, cita.nombre || "", cita.telefono || "");
 
-                        li.appendChild(btnEditar);
-                        li.appendChild(btnEliminar);
-                    }
+                const btnEliminar = document.createElement("button");
+                btnEliminar.textContent = "Eliminar";
+                btnEliminar.classList.add("eliminar-btn");
+                btnEliminar.onclick = () => eliminarCita(citaId);
 
-                    listaCitas.appendChild(li);
-                });
-            });
-        }
-
-        // Editar cita
-        async function editarCita(id, cita) {
-            let nuevoNombre = prompt("Nuevo nombre:", cita.nombre).trim();
-            let nuevoTelefono = prompt("Nuevo teléfono:", cita.telefono).trim();
-            if (nuevoNombre && nuevoTelefono) {
-                await updateDoc(doc(db, "citas", id), {
-                    nombre: nuevoNombre,
-                    telefono: nuevoTelefono
-                });
-                alert("Cita actualizada.");
+                li.appendChild(btnEditar);
+                li.appendChild(btnEliminar);
             }
+
+            listaCitas.appendChild(li);
+        });
+    });
+}
+// Editar cita
+window.editarCita = function (id, nombre, telefono) {
+    let modalEditar = document.getElementById("modal-editar");
+    let inputNombre = document.getElementById("editar-nombre");
+    let inputTelefono = document.getElementById("editar-telefono");
+
+    inputNombre.value = nombre || "";
+    inputTelefono.value = telefono || "";
+
+    modalEditar.style.display = "flex";
+
+    document.getElementById("guardar-edicion").onclick = async function () {
+        let nuevoNombre = inputNombre.value.trim();
+        let nuevoTelefono = inputTelefono.value.trim();
+
+        if (!nuevoNombre || !nuevoTelefono) {
+            alert("Debe ingresar un nombre y un número válido.");
+            return;
         }
+
+        try {
+            await updateDoc(doc(db, "citas", id), {
+                nombre: nuevoNombre,
+                telefono: nuevoTelefono
+            });
+
+            modalEditar.style.display = "none"; // Cierra el modal de edición
+
+            // 💡 MOSTRAR EL MODAL EN VEZ DE ALERTA
+            let modalConfirmacion = document.getElementById("modal-confirmacion-edicion");
+            modalConfirmacion.style.display = "flex";
+
+        } catch (error) {
+            console.error("Error al actualizar cita:", error);
+        }
+    };
+};
+
+// Cerrar el modal de confirmación al hacer clic en "Aceptar"
+document.getElementById("cerrar-confirmacion-edicion").addEventListener("click", () => {
+    document.getElementById("modal-confirmacion-edicion").style.display = "none";
+});
+
+
+// Cerrar modal de edición al hacer clic en "Cancelar"
+document.getElementById("cancelar-edicion").addEventListener("click", () => {
+    document.getElementById("modal-editar").style.display = "none";
+});
+
+
+// Cerrar modal de edición al hacer clic en "Cancelar"
+document.getElementById("cancelar-edicion").addEventListener("click", () => {
+    document.getElementById("modal-editar").style.display = "none";
+});
 
         // Eliminar cita
         async function eliminarCita(id) {
@@ -343,8 +440,27 @@ function cerrarModal() {
         <div class="modal-botones">
             <button id="cerrar-confirmacion" class="btn-confirmar">Aceptar</button>
         </div>
-    </div>
+    </div> 
 </div>
 <div id="modal-editar" class="modal">
+    <div class="modal-contenido">
+        <p>Editar cita</p>
+        <input type="text" id="editar-nombre" placeholder="Nombre">
+        <input type="text" id="editar-telefono" placeholder="Teléfono">
+        <div class="modal-botones">
+            <button id="guardar-edicion" class="btn-confirmar">Guardar</button>
+            <button id="cancelar-edicion" class="btn-cancelar">Cancelar</button>
+        </div>
+    </div>
+</div>
+<!-- Modal de confirmación después de editar -->
+<div id="modal-confirmacion-edicion" class="modal">
+    <div class="modal-contenido">
+        <p>Cita actualizada correctamente.</p>
+        <div class="modal-botones">
+            <button id="cerrar-confirmacion-edicion" class="btn-confirmar">Aceptar</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
