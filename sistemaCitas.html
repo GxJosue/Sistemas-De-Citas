@@ -244,19 +244,19 @@
 <body>
     <div class="header">
         <img src="img/logo.webp" alt="Logo">
-        <h1>Barbería Free Style - Citas Disponibles</h1>
+        <h1>Barbería Free Style</h1>
     </div>
 
     <div class="container">
         <h2>Selecciona un día y un horario disponible</h2>
         <div id="dias-de-la-semana">
-            <button onclick="seleccionarDia('lunes')">Lunes</button>
-            <button onclick="seleccionarDia('martes')">Martes</button>
-            <button onclick="seleccionarDia('miércoles')">Miércoles</button>
-            <button onclick="seleccionarDia('jueves')">Jueves</button>
-            <button onclick="seleccionarDia('viernes')">Viernes</button>
-            <button onclick="seleccionarDia('sábado')">Sábado</button>
-            <button onclick="seleccionarDia('domingo')">Domingo</button>
+            <button onclick="seleccionarDia('Lunes')">Lunes</button>
+            <button onclick="seleccionarDia('Martes')">Martes</button>
+            <button onclick="seleccionarDia('Miércoles')">Miércoles</button>
+            <button onclick="seleccionarDia('Jueves')">Jueves</button>
+            <button onclick="seleccionarDia('Viernes')">Viernes</button>
+            <button onclick="seleccionarDia('Sábado')">Sábado</button>
+            <button onclick="seleccionarDia('Domingo')">Domingo</button>
         </div>
         <div id="horarios"></div>
         <h3>Citas Agendadas</h3>
@@ -285,13 +285,13 @@
 
 // Horarios disponibles para cada día de la semana
 const horarios = {
-    lunes: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
-    martes: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
-    miércoles: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
-    jueves: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
-    viernes: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
-    sábado: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
-    domingo: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"]
+    Lunes: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
+    Martes: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
+    Miércoles: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
+    Jueves: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
+    Viernes: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
+    Sábado: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
+    Domingo: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"]
 };
 
 
@@ -544,7 +544,7 @@ document.getElementById("cerrar-eliminacion-exitosa").addEventListener("click", 
     <div id="modal" class="modal">
         <div class="modal-contenido">
             <h2>Agendar Cita</h2>
-            <input type="text" id="nombre" placeholder="Ingrese su nombre">
+            <input type="text" id="nombre" placeholder="Ingrese su nombre y apellido">
             <input type="tel" id="telefono" placeholder="Ingrese su teléfono">
             <div class="modal-botones">
                 <button class="btn-confirmar" onclick="confirmarCita()">Confirmar</button>
