@@ -411,13 +411,38 @@ document.getElementById("cancelar-edicion").addEventListener("click", () => {
     document.getElementById("modal-editar").style.display = "none";
 });
 
-        // Eliminar cita
-        async function eliminarCita(id) {
-            if (confirm("¿Seguro que deseas eliminar esta cita?")) {
-                await deleteDoc(doc(db, "citas", id));
-                alert("Cita eliminada.");
-            }
+// Función para eliminar cita con modal de confirmación
+window.eliminarCita = function (id) {
+    let modalEliminar = document.getElementById("modal-eliminar");
+    modalEliminar.style.display = "flex";
+
+    // Cuando el usuario confirma la eliminación
+    document.getElementById("confirmar-eliminar").onclick = async function () {
+        try {
+            await deleteDoc(doc(db, "citas", id));
+
+            modalEliminar.style.display = "none"; // Cierra el modal de confirmación
+
+            // 💡 Mostrar el modal de eliminación exitosa
+            let modalEliminacionExitosa = document.getElementById("modal-eliminacion-exitosa");
+            modalEliminacionExitosa.style.display = "flex";
+
+        } catch (error) {
+            console.error("Error al eliminar cita:", error);
         }
+    };
+};
+
+// Cancelar la eliminación
+document.getElementById("cancelar-eliminar").addEventListener("click", () => {
+    document.getElementById("modal-eliminar").style.display = "none";
+});
+
+// Cerrar el modal de eliminación exitosa
+document.getElementById("cerrar-eliminacion-exitosa").addEventListener("click", () => {
+    document.getElementById("modal-eliminacion-exitosa").style.display = "none";
+});
+
 
         window.onload = cargarHorarios;
     </script>
@@ -462,5 +487,26 @@ document.getElementById("cancelar-edicion").addEventListener("click", () => {
         </div>
     </div>
 </div>
+<!-- Modal de confirmación de eliminación -->
+<div id="modal-eliminar" class="modal">
+    <div class="modal-contenido">
+        <p>¿Seguro que deseas eliminar esta cita?</p>
+        <div class="modal-botones">
+            <button id="confirmar-eliminar" class="btn-confirmar">Sí, eliminar</button>
+            <button id="cancelar-eliminar" class="btn-cancelar">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de cita eliminada -->
+<div id="modal-eliminacion-exitosa" class="modal">
+    <div class="modal-contenido">
+        <p>Cita eliminada correctamente.</p>
+        <div class="modal-botones">
+            <button id="cerrar-eliminacion-exitosa" class="btn-confirmar">Aceptar</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
