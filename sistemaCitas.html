@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Citas - Barbería</title>
     <style>
+        .hora-disponible {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .hora-ocupada {
+            background-color: #f44336;
+            color: white;
+            padding: 10px;
+            margin: 5px;
+            cursor: not-allowed;
+        }
         body {
             font-family: Arial, sans-serif;
             text-align: center;
@@ -204,17 +218,46 @@
     border-radius: 5px;
     cursor: pointer;
 }
+/* Estilos generales para los botones de los días */
+#dias-de-la-semana button {
+    padding: 10px 20px;
+    margin: 5px;
+    border: 1px solid #ccc;
+    background-color: #f9f9f9;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+#dias-de-la-semana button.dia-actual {
+    background-color: #ccc; /* Verde cuando está seleccionado */
+    color: rgb(0, 0, 0);
+    border-color: #ccc;
+}
+
+#dias-de-la-semana button:hover {
+    background-color: #ddd;
+}
+
 
     </style>
 </head>
 <body>
     <div class="header">
         <img src="img/logo.webp" alt="Logo">
-        <h1>Barbería Free Style - Citas disponibles</h1>
+        <h1>Barbería Free Style - Citas Disponibles</h1>
     </div>
 
     <div class="container">
-        <h2>Selecciona un horario disponible</h2>
+        <h2>Selecciona un día y un horario disponible</h2>
+        <div id="dias-de-la-semana">
+            <button onclick="seleccionarDia('lunes')">Lunes</button>
+            <button onclick="seleccionarDia('martes')">Martes</button>
+            <button onclick="seleccionarDia('miércoles')">Miércoles</button>
+            <button onclick="seleccionarDia('jueves')">Jueves</button>
+            <button onclick="seleccionarDia('viernes')">Viernes</button>
+            <button onclick="seleccionarDia('sábado')">Sábado</button>
+            <button onclick="seleccionarDia('domingo')">Domingo</button>
+        </div>
         <div id="horarios"></div>
         <h3>Citas Agendadas</h3>
         <ul id="lista-citas" class="lista-citas"></ul>
@@ -240,11 +283,19 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Horarios disponibles
-        const horarios = [
-            "7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
-            "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"
-        ];
+// Horarios disponibles para cada día de la semana
+const horarios = {
+    lunes: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
+    martes: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
+    miércoles: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
+    jueves: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
+    viernes: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
+    sábado: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
+    domingo: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"]
+};
+
+
+        let diaSeleccionado = ""; // Para almacenar el día seleccionado
 
         let userId = localStorage.getItem("userId");
         if (!userId) {
@@ -252,174 +303,190 @@
             localStorage.setItem("userId", userId);
         }
 
-        // Cargar horarios
+        // Seleccionar el día
+        window.seleccionarDia = function(dia) {
+            console.log("Día seleccionado: " + dia); // Verificación del día seleccionado
+            diaSeleccionado = dia;
+            cargarHorarios(); // Cargar los horarios cuando un día es seleccionado
+        }
+
+        // Cargar horarios para el día seleccionado
         function cargarHorarios() {
             const contenedor = document.getElementById("horarios");
-            contenedor.innerHTML = "";
+            contenedor.innerHTML = ""; // Limpiar los horarios previos
 
+            if (!diaSeleccionado) {
+                alert("Debe seleccionar un día.");
+                return;
+            }
+
+            console.log("Cargando horarios para el día: " + diaSeleccionado); // Depuración para saber si la función es llamada
+
+            // Recuperar citas de Firebase para verificar si hay citas en ese horario
             onSnapshot(collection(db, "citas"), (snapshot) => {
                 let citasGuardadas = snapshot.docs.map(doc => doc.data());
 
-                contenedor.innerHTML = "";
+                contenedor.innerHTML = ""; // Limpiar los horarios previos
 
-                horarios.forEach(hora => {
+                // Mostrar los horarios del día seleccionado
+                horarios[diaSeleccionado].forEach(hora => {
                     const btn = document.createElement("button");
                     btn.textContent = hora;
-                    let citaExistente = citasGuardadas.find(cita => cita.hora === hora);
+
+                    let citaExistente = citasGuardadas.find(cita => cita.dia === diaSeleccionado && cita.hora === hora);
 
                     if (citaExistente) {
                         btn.classList.add("hora-ocupada");
                         btn.disabled = true;
                     } else {
                         btn.classList.add("hora-disponible");
-                        btn.onclick = () => agendarCita(hora);
+                        btn.onclick = () => agendarCita(diaSeleccionado, hora);
                     }
                     contenedor.appendChild(btn);
                 });
             });
-
-            cargarListaCitas();
         }
 
         // Agendar cita
         let horaSeleccionada = ""; // Para almacenar la hora seleccionada
+        let diaCitaSeleccionado = ""; // Para almacenar el día seleccionado
 
-function agendarCita(hora) {
-    horaSeleccionada = hora;
-    document.getElementById("modal").style.display = "flex";
-}
+        function agendarCita(dia, hora) {
+            diaCitaSeleccionado = dia;
+            horaSeleccionada = hora;
+            console.log("Cita agendada para el día: " + dia + " a las " + hora); // Depuración de la cita seleccionada
+            document.getElementById("modal").style.display = "flex";
+        }
 
-// Confirmar y guardar la cita
-window.confirmarCita = async function () {
-    let nombre = document.getElementById("nombre").value.trim();
-    let telefono = document.getElementById("telefono").value.trim();
+        // Confirmar y guardar la cita
+        window.confirmarCita = async function () {
+            let nombre = document.getElementById("nombre").value.trim();
+            let telefono = document.getElementById("telefono").value.trim();
 
-    if (!nombre || !telefono) {
-        alert("Debe ingresar un nombre y un número válido.");
-        return;
-    }
-
-    let cita = { hora: horaSeleccionada, nombre, telefono, userId };
-    await addDoc(collection(db, "citas"), cita);
-
-    cerrarModal(); // Cierra el modal de agendar
-
-    // Mostrar modal de confirmación
-    document.getElementById("modal-confirmacion").style.display = "flex";
-};
-
-// Cerrar modal de confirmación al hacer clic en "Aceptar"
-document.getElementById("cerrar-confirmacion").addEventListener("click", () => {
-    document.getElementById("modal-confirmacion").style.display = "none";
-});
-
-
-
-// Cerrar el modal
-function cerrarModal() {
-    let modal = document.getElementById("modal");
-    if (modal) {
-        modal.style.display = "none";
-        document.getElementById("nombre").value = "";
-        document.getElementById("telefono").value = "";
-    } else {
-        console.error("El modal no se encontró en el DOM");
-    }
-}
-
-document.addEventListener("DOMContentLoaded", function () {
-    document.querySelector(".btn-cancelar").addEventListener("click", cerrarModal);
-});
-
-
-
-// Cargar lista de citas
-function cargarListaCitas() {
-    const listaCitas = document.getElementById("lista-citas");
-    listaCitas.innerHTML = "";
-
-    onSnapshot(collection(db, "citas"), (snapshot) => {
-        listaCitas.innerHTML = "";
-        snapshot.forEach(docSnap => {
-            let cita = docSnap.data();
-            let citaId = docSnap.id;
-
-            let li = document.createElement("li");
-            li.textContent = `${cita.nombre || "No disponible"} - ${cita.telefono || "No disponible"} - ${cita.hora || "No disponible"}`;
-
-            if (cita.userId === userId) {
-                const btnEditar = document.createElement("button");
-                btnEditar.textContent = "Editar";
-                btnEditar.classList.add("editar-btn");
-                btnEditar.onclick = () => editarCita(citaId, cita.nombre || "", cita.telefono || "");
-
-                const btnEliminar = document.createElement("button");
-                btnEliminar.textContent = "Eliminar";
-                btnEliminar.classList.add("eliminar-btn");
-                btnEliminar.onclick = () => eliminarCita(citaId);
-
-                li.appendChild(btnEditar);
-                li.appendChild(btnEliminar);
+            if (!nombre || !telefono) {
+                alert("Debe ingresar un nombre y un número válido.");
+                return;
             }
 
-            listaCitas.appendChild(li);
+            let cita = { dia: diaCitaSeleccionado, hora: horaSeleccionada, nombre, telefono, userId };
+            await addDoc(collection(db, "citas"), cita);
+
+            cerrarModal(); // Cierra el modal de agendar
+
+            // Mostrar modal de confirmación
+            document.getElementById("modal-confirmacion").style.display = "flex";
+        };
+
+        // Cerrar modal de confirmación al hacer clic en "Aceptar"
+        document.getElementById("cerrar-confirmacion").addEventListener("click", () => {
+            document.getElementById("modal-confirmacion").style.display = "none";
         });
-    });
-}
+
+        // Cerrar el modal
+        function cerrarModal() {
+            let modal = document.getElementById("modal");
+            if (modal) {
+                modal.style.display = "none";
+                document.getElementById("nombre").value = "";
+                document.getElementById("telefono").value = "";
+            } else {
+                console.error("El modal no se encontró en el DOM");
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelector(".btn-cancelar").addEventListener("click", cerrarModal);
+        });
+
+        // Cargar lista de citas
+        function cargarListaCitas() {
+            const listaCitas = document.getElementById("lista-citas");
+            listaCitas.innerHTML = "";
+
+            onSnapshot(collection(db, "citas"), (snapshot) => {
+                listaCitas.innerHTML = "";
+                snapshot.forEach(docSnap => {
+                    let cita = docSnap.data();
+                    let citaId = docSnap.id;
+
+                    let li = document.createElement("li");
+                    li.textContent = `${cita.nombre || "No disponible"} - ${cita.telefono || "No disponible"} - ${cita.hora || "No disponible"} - ${cita.dia || "No disponible"}`;
+
+                    if (cita.userId === userId) {
+                        const btnEditar = document.createElement("button");
+                        btnEditar.textContent = "Editar";
+                        btnEditar.onclick = () => abrirModalEditar(citaId, cita);
+                        li.appendChild(btnEditar);
+
+                        const btnEliminar = document.createElement("button");
+                        btnEliminar.textContent = "Eliminar";
+                        btnEliminar.onclick = () => eliminarCita(citaId);
+                        li.appendChild(btnEliminar);
+                    }
+                    listaCitas.appendChild(li);
+                });
+            });
+        }
+
 // Editar cita
-window.editarCita = function (id, nombre, telefono) {
-    let modalEditar = document.getElementById("modal-editar");
-    let inputNombre = document.getElementById("editar-nombre");
-    let inputTelefono = document.getElementById("editar-telefono");
+function abrirModalEditar(id, cita) {
+    const modalEditar = document.getElementById("modal-editar");
+    const modalConfirmacion = document.getElementById("modal-confirmacion-edicion");
+    const nombreInput = document.getElementById("editar-nombre");
+    const telefonoInput = document.getElementById("editar-telefono");
+    const btnGuardar = document.getElementById("guardar-edicion");
+    const btnCancelar = document.getElementById("cancelar-edicion");
+    const btnCerrarConfirmacion = document.getElementById("cerrar-confirmacion-edicion");
 
-    inputNombre.value = nombre || "";
-    inputTelefono.value = telefono || "";
-
+    // Mostrar modal de edición
     modalEditar.style.display = "flex";
 
-    document.getElementById("guardar-edicion").onclick = async function () {
-        let nuevoNombre = inputNombre.value.trim();
-        let nuevoTelefono = inputTelefono.value.trim();
+    // Rellenar los inputs con la información actual de la cita
+    nombreInput.value = cita.nombre;
+    telefonoInput.value = cita.telefono;
 
-        if (!nuevoNombre || !nuevoTelefono) {
-            alert("Debe ingresar un nombre y un número válido.");
-            return;
-        }
+    // Eliminar eventos previos para evitar acumulaciones
+    btnGuardar.replaceWith(btnGuardar.cloneNode(true));
+    btnCancelar.replaceWith(btnCancelar.cloneNode(true));
+    btnCerrarConfirmacion.replaceWith(btnCerrarConfirmacion.cloneNode(true));
 
-        try {
-            await updateDoc(doc(db, "citas", id), {
-                nombre: nuevoNombre,
-                telefono: nuevoTelefono
-            });
+    // Obtener nuevamente los botones después de reemplazarlos
+    const nuevoBtnGuardar = document.getElementById("guardar-edicion");
+    const nuevoBtnCancelar = document.getElementById("cancelar-edicion");
+    const nuevoBtnCerrarConfirmacion = document.getElementById("cerrar-confirmacion-edicion");
 
-            modalEditar.style.display = "none"; // Cierra el modal de edición
+    // Evento para guardar los cambios en Firestore
+    nuevoBtnGuardar.addEventListener("click", function () {
+        let citaRef = doc(db, "citas", id);
+        updateDoc(citaRef, {
+            nombre: nombreInput.value,
+            telefono: telefonoInput.value
+        }).then(() => {
+            console.log("Cita actualizada correctamente");
 
-            // 💡 MOSTRAR EL MODAL EN VEZ DE ALERTA
-            let modalConfirmacion = document.getElementById("modal-confirmacion-edicion");
+            // Cerrar modal de edición y mostrar confirmación
+            modalEditar.style.display = "none";
             modalConfirmacion.style.display = "flex";
 
-        } catch (error) {
-            console.error("Error al actualizar cita:", error);
-        }
-    };
-};
+            // Recargar las citas en la interfaz
+            cargarCitas();
+        }).catch((error) => {
+            console.error("Error al actualizar la cita:", error);
+        });
+    });
 
-// Cerrar el modal de confirmación al hacer clic en "Aceptar"
-document.getElementById("cerrar-confirmacion-edicion").addEventListener("click", () => {
-    document.getElementById("modal-confirmacion-edicion").style.display = "none";
-});
+    // Evento para cancelar la edición
+    nuevoBtnCancelar.addEventListener("click", function () {
+        modalEditar.style.display = "none";
+    });
+
+    // Evento para cerrar la confirmación
+    nuevoBtnCerrarConfirmacion.addEventListener("click", function () {
+        modalConfirmacion.style.display = "none";
+    });
+}
 
 
-// Cerrar modal de edición al hacer clic en "Cancelar"
-document.getElementById("cancelar-edicion").addEventListener("click", () => {
-    document.getElementById("modal-editar").style.display = "none";
-});
-
-
-// Cerrar modal de edición al hacer clic en "Cancelar"
-document.getElementById("cancelar-edicion").addEventListener("click", () => {
-    document.getElementById("modal-editar").style.display = "none";
-});
 
 // Función para eliminar cita con modal de confirmación
 window.eliminarCita = function (id) {
@@ -454,69 +521,85 @@ document.getElementById("cerrar-eliminacion-exitosa").addEventListener("click", 
 });
 
 
-        window.onload = cargarHorarios;
+        cargarListaCitas(); // Cargar las citas almacenadas
+
+
+        document.addEventListener("DOMContentLoaded", function () {
+    // Seleccionamos todos los botones dentro de #dias-de-la-semana
+    const botones = document.querySelectorAll("#dias-de-la-semana button");
+
+    // Añadimos el evento a cada botón
+    botones.forEach(boton => {
+        boton.addEventListener("click", function () {
+            // Removemos la clase de los otros botones
+            botones.forEach(b => b.classList.remove("dia-actual"));
+            
+            // Añadimos la clase solo al botón seleccionado
+            this.classList.add("dia-actual");
+        });
+    });
+});
+
     </script>
-
-<div id="modal" class="modal">
-    <div class="modal-contenido">
-        <h2>Agendar Cita</h2>
-        <input type="text" id="nombre" placeholder="Ingrese su nombre">
-        <input type="tel" id="telefono" placeholder="Ingrese su teléfono">
-        <div class="modal-botones">
-            <button class="btn-confirmar" onclick="confirmarCita()">Confirmar</button>
-            <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
+    <div id="modal" class="modal">
+        <div class="modal-contenido">
+            <h2>Agendar Cita</h2>
+            <input type="text" id="nombre" placeholder="Ingrese su nombre">
+            <input type="tel" id="telefono" placeholder="Ingrese su teléfono">
+            <div class="modal-botones">
+                <button class="btn-confirmar" onclick="confirmarCita()">Confirmar</button>
+                <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
+            </div>
         </div>
     </div>
-</div>
-
-<div id="modal-confirmacion" class="modal">
-    <div class="modal-contenido">
-        <p id="mensaje-confirmacion">Cita agendada correctamente.</p>
-        <div class="modal-botones">
-            <button id="cerrar-confirmacion" class="btn-confirmar">Aceptar</button>
-        </div>
-    </div> 
-</div>
-<div id="modal-editar" class="modal">
-    <div class="modal-contenido">
-        <p>Editar cita</p>
-        <input type="text" id="editar-nombre" placeholder="Nombre">
-        <input type="text" id="editar-telefono" placeholder="Teléfono">
-        <div class="modal-botones">
-            <button id="guardar-edicion" class="btn-confirmar">Guardar</button>
-            <button id="cancelar-edicion" class="btn-cancelar">Cancelar</button>
+    
+    <div id="modal-confirmacion" class="modal">
+        <div class="modal-contenido">
+            <p id="mensaje-confirmacion">Cita agendada correctamente.</p>
+            <div class="modal-botones">
+                <button id="cerrar-confirmacion" class="btn-confirmar">Aceptar</button>
+            </div>
+        </div> 
+    </div>
+    <div id="modal-editar" class="modal">
+        <div class="modal-contenido">
+            <p>Editar cita</p>
+            <input type="text" id="editar-nombre" placeholder="Nombre">
+            <input type="text" id="editar-telefono" placeholder="Teléfono">
+            <div class="modal-botones">
+                <button id="guardar-edicion" class="btn-confirmar">Guardar</button>
+                <button id="cancelar-edicion" class="btn-cancelar">Cancelar</button>
+            </div>
         </div>
     </div>
-</div>
-<!-- Modal de confirmación después de editar -->
-<div id="modal-confirmacion-edicion" class="modal">
-    <div class="modal-contenido">
-        <p>Cita actualizada correctamente.</p>
-        <div class="modal-botones">
-            <button id="cerrar-confirmacion-edicion" class="btn-confirmar">Aceptar</button>
+    <!-- Modal de confirmación después de editar -->
+    <div id="modal-confirmacion-edicion" class="modal">
+        <div class="modal-contenido">
+            <p>Cita actualizada correctamente.</p>
+            <div class="modal-botones">
+                <button id="cerrar-confirmacion-edicion" class="btn-confirmar">Aceptar</button>
+            </div>
         </div>
     </div>
-</div>
-<!-- Modal de confirmación de eliminación -->
-<div id="modal-eliminar" class="modal">
-    <div class="modal-contenido">
-        <p>¿Seguro que deseas eliminar esta cita?</p>
-        <div class="modal-botones">
-            <button id="confirmar-eliminar" class="btn-confirmar">Sí, eliminar</button>
-            <button id="cancelar-eliminar" class="btn-cancelar">Cancelar</button>
+    <!-- Modal de confirmación de eliminación -->
+    <div id="modal-eliminar" class="modal">
+        <div class="modal-contenido">
+            <p>¿Seguro que deseas eliminar esta cita?</p>
+            <div class="modal-botones">
+                <button id="confirmar-eliminar" class="btn-confirmar">Sí, eliminar</button>
+                <button id="cancelar-eliminar" class="btn-cancelar">Cancelar</button>
+            </div>
         </div>
     </div>
-</div>
-
-<!-- Modal de cita eliminada -->
-<div id="modal-eliminacion-exitosa" class="modal">
-    <div class="modal-contenido">
-        <p>Cita eliminada correctamente.</p>
-        <div class="modal-botones">
-            <button id="cerrar-eliminacion-exitosa" class="btn-confirmar">Aceptar</button>
+    
+    <!-- Modal de cita eliminada -->
+    <div id="modal-eliminacion-exitosa" class="modal">
+        <div class="modal-contenido">
+            <p>Cita eliminada correctamente.</p>
+            <div class="modal-botones">
+                <button id="cerrar-eliminacion-exitosa" class="btn-confirmar">Aceptar</button>
+            </div>
         </div>
     </div>
-</div>
-
 </body>
 </html>
