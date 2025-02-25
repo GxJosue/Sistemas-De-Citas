@@ -317,10 +317,20 @@ document.getElementById("cerrar-confirmacion").addEventListener("click", () => {
 
 // Cerrar el modal
 function cerrarModal() {
-    document.getElementById("modal").style.display = "none";
-    document.getElementById("nombre").value = "";
-    document.getElementById("telefono").value = "";
+    let modal = document.getElementById("modal");
+    if (modal) {
+        modal.style.display = "none";
+        document.getElementById("nombre").value = "";
+        document.getElementById("telefono").value = "";
+    } else {
+        console.error("El modal no se encontró en el DOM");
+    }
 }
+
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelector(".btn-cancelar").addEventListener("click", cerrarModal);
+});
+
 
 
 // Cargar lista de citas
