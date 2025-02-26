@@ -295,57 +295,71 @@ const horarios = {
 };
 
 
-        let diaSeleccionado = ""; // Para almacenar el día seleccionado
+let diaSeleccionado = ""; // Para almacenar el día seleccionado
 
-        let userId = localStorage.getItem("userId");
-        if (!userId) {
-            userId = "user-" + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem("userId", userId);
-        }
+let userId = localStorage.getItem("userId");
+if (!userId) {
+    userId = "user-" + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem("userId", userId);
+}
 
-        // Seleccionar el día
-        window.seleccionarDia = function(dia) {
-            console.log("Día seleccionado: " + dia); // Verificación del día seleccionado
-            diaSeleccionado = dia;
-            cargarHorarios(); // Cargar los horarios cuando un día es seleccionado
-        }
+// Seleccionar el día
+window.seleccionarDia = function(dia) {
+    console.log("Día seleccionado: " + dia); // Verificación del día seleccionado
 
-        // Cargar horarios para el día seleccionado
-        function cargarHorarios() {
-            const contenedor = document.getElementById("horarios");
-            contenedor.innerHTML = ""; // Limpiar los horarios previos
+    // Si el día seleccionado es el mismo, ocultamos los horarios
+    if (diaSeleccionado === dia) {
+        ocultarHorarios(); // Llamamos a la función para ocultar los horarios
+        diaSeleccionado = ""; // Reseteamos la selección
+    } else {
+        diaSeleccionado = dia; // Establecer el nuevo día seleccionado
+        cargarHorarios(); // Cargar los horarios del nuevo día
+    }
+}
 
-            if (!diaSeleccionado) {
-                alert("Debe seleccionar un día.");
-                return;
+// Función para ocultar los horarios
+function ocultarHorarios() {
+    const contenedor = document.getElementById("horarios");
+    contenedor.innerHTML = ""; // Limpiar los horarios previos cuando se oculten
+}
+
+// Cargar horarios para el día seleccionado
+function cargarHorarios() {
+    const contenedor = document.getElementById("horarios");
+    contenedor.innerHTML = ""; // Limpiar los horarios previos
+
+    if (!diaSeleccionado) {
+        alert("Debe seleccionar un día.");
+        return;
+    }
+
+    console.log("Cargando horarios para el día: " + diaSeleccionado); // Depuración para saber si la función es llamada
+
+    // Recuperar citas de Firebase para verificar si hay citas en ese horario
+    onSnapshot(collection(db, "citas"), (snapshot) => {
+        let citasGuardadas = snapshot.docs.map(doc => doc.data());
+
+        contenedor.innerHTML = ""; // Limpiar los horarios previos
+
+        // Mostrar los horarios del día seleccionado
+        horarios[diaSeleccionado].forEach(hora => {
+            const btn = document.createElement("button");
+            btn.textContent = hora;
+
+            let citaExistente = citasGuardadas.find(cita => cita.dia === diaSeleccionado && cita.hora === hora);
+
+            if (citaExistente) {
+                btn.classList.add("hora-ocupada");
+                btn.disabled = true;
+            } else {
+                btn.classList.add("hora-disponible");
+                btn.onclick = () => agendarCita(diaSeleccionado, hora);
             }
+            contenedor.appendChild(btn);
+        });
+    });
+}
 
-            console.log("Cargando horarios para el día: " + diaSeleccionado); // Depuración para saber si la función es llamada
-
-            // Recuperar citas de Firebase para verificar si hay citas en ese horario
-            onSnapshot(collection(db, "citas"), (snapshot) => {
-                let citasGuardadas = snapshot.docs.map(doc => doc.data());
-
-                contenedor.innerHTML = ""; // Limpiar los horarios previos
-
-                // Mostrar los horarios del día seleccionado
-                horarios[diaSeleccionado].forEach(hora => {
-                    const btn = document.createElement("button");
-                    btn.textContent = hora;
-
-                    let citaExistente = citasGuardadas.find(cita => cita.dia === diaSeleccionado && cita.hora === hora);
-
-                    if (citaExistente) {
-                        btn.classList.add("hora-ocupada");
-                        btn.disabled = true;
-                    } else {
-                        btn.classList.add("hora-disponible");
-                        btn.onclick = () => agendarCita(diaSeleccionado, hora);
-                    }
-                    contenedor.appendChild(btn);
-                });
-            });
-        }
 
         // Agendar cita
         let horaSeleccionada = ""; // Para almacenar la hora seleccionada
