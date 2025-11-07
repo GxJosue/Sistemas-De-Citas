@@ -12,7 +12,7 @@ const firebaseConfig = {
   projectId: "barberiacitas-94e43",
   storageBucket: "barberiacitas-94e43.firebasestorage.app",
   messagingSenderId: "113964486737",
-  appId: "1:113964486737:web:c513937562113309309d5e870",
+  appId: "1:113964486737:web:c513937562113309d5e870",
   measurementId: "G-ZQ4LV7M646"
 };
 
