@@ -310,6 +310,7 @@ function startListaListener() {
   }
 }
 
+// Reemplaza la función renderLista por esta versión que crea estructura semántica y clases útiles
 function renderLista(snapshot) {
   const listaCitas = document.getElementById("lista-citas");
   if (!listaCitas) return;
@@ -319,32 +320,46 @@ function renderLista(snapshot) {
     const cita = docSnap.data();
     const citaId = docSnap.id;
 
+    // Estructura del item mejorada: <li> <div.appt-info>... </div> <div.appt-actions>... </div> </li>
     const li = document.createElement("li");
-    const texto = document.createElement("span");
+    li.className = "appt-card";
 
-    let textoPrincipal = `${cita.nombre || "No disponible"} - ${cita.telefono || "No disponible"} - ${cita.hora || "No disponible"} - ${cita.dia || "No disponible"}`;
-    if (isAdmin) {
-      textoPrincipal += ` - owner: ${cita.userId}`;
-    }
-    texto.textContent = textoPrincipal;
-    li.appendChild(texto);
+    // Info principal (nombre, teléfono, hora, día)
+    const info = document.createElement("div");
+    info.className = "appt-info";
 
+    const nombreEl = document.createElement("div");
+    nombreEl.className = "appt-name";
+    nombreEl.textContent = cita.nombre || "Sin nombre";
+
+    const telefonoEl = document.createElement("div");
+    telefonoEl.className = "appt-phone";
+    telefonoEl.textContent = cita.telefono || "-";
+
+    const metaEl = document.createElement("div");
+    metaEl.className = "appt-meta";
+    // hora y dia en líneas separadas para mejor lectura en móvil
+    metaEl.innerHTML = `<span class="appt-time">${cita.hora || "-"}</span> <span class="sep">·</span> <span class="appt-day">${cita.dia || "-"}</span>`;
+
+    info.appendChild(nombreEl);
+    info.appendChild(telefonoEl);
+    info.appendChild(metaEl);
+
+    // Acciones (botones)
     const accionesWrapper = document.createElement("div");
-    accionesWrapper.style.display = "flex";
-    accionesWrapper.style.gap = "8px";
-    accionesWrapper.style.alignItems = "center";
+    accionesWrapper.className = "appt-actions";
 
     // Si la cita pertenece al usuario, permitimos editar/eliminar
     if (cita.userId === (currentUser && currentUser.uid)) {
       const btnEditar = document.createElement("button");
       btnEditar.textContent = "Editar";
-      btnEditar.className = "editar-btn";
+      btnEditar.className = "editar-btn appt-btn";
       btnEditar.addEventListener("click", () => abrirModalEditar(citaId, cita));
       accionesWrapper.appendChild(btnEditar);
 
       const btnEliminar = document.createElement("button");
       btnEliminar.textContent = "Eliminar";
-      btnEliminar.className = "eliminar-btn";
+      btnEliminar.className = "eliminar-btn appt-btn";
       btnEliminar.addEventListener("click", () => eliminarCita(citaId));
       accionesWrapper.appendChild(btnEliminar);
     }
@@ -353,11 +368,21 @@ function renderLista(snapshot) {
     if (isAdmin && cita.userId !== (currentUser && currentUser.uid)) {
       const btnEliminarAdmin = document.createElement("button");
       btnEliminarAdmin.textContent = "Eliminar (admin)";
-      btnEliminarAdmin.className = "eliminar-btn";
+      btnEliminarAdmin.className = "eliminar-btn appt-btn";
       btnEliminarAdmin.addEventListener("click", () => confirmAdminDelete(citaId));
       accionesWrapper.appendChild(btnEliminarAdmin);
     }
 
+    // Si admin, también mostrar owner (en la info)
+    if (isAdmin) {
+      const ownerEl = document.createElement("div");
+      ownerEl.className = "appt-owner";
+      ownerEl.textContent = `Owner: ${cita.userId}`;
+      info.appendChild(ownerEl);
+    }
+
+    // Appending
+    li.appendChild(info);
     if (accionesWrapper.childElementCount > 0) li.appendChild(accionesWrapper);
     listaCitas.appendChild(li);
   });
