@@ -8,19 +8,21 @@
   <!-- Enlaza el CSS separado -->
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" type="image/png" href="img/logo.webp">
-
 </head>
 <body>
   <div class="header">
     <img src="img/logo.webp" alt="Logo">
     <h1>Barbería Free Style</h1>
+    <div id="auth-area" class="auth-area">
+      <!-- Rellenado por JS -->
+      <button id="login-btn" class="btn-auth">Iniciar sesión</button>
+    </div>
   </div>
 
   <div class="container">
     <h2>Selecciona un día y un horario disponible</h2>
 
     <div id="dias-de-la-semana">
-      <!-- Botones sin handlers inline. script.js añadirá los listeners. -->
       <button class="dia-btn" data-dia="Lunes">Lunes</button>
       <button class="dia-btn" data-dia="Martes">Martes</button>
       <button class="dia-btn" data-dia="Miércoles">Miércoles</button>
@@ -32,7 +34,10 @@
 
     <div id="horarios"></div>
 
-    <h3>Citas Agendadas</h3>
+    <div class="list-header">
+      <h3>Citas Agendadas</h3>
+      <button id="reset-all" class="btn-cancelar" style="display:none">Resetear todas las citas (admin)</button>
+    </div>
     <ul id="lista-citas" class="lista-citas"></ul>
   </div>
 
