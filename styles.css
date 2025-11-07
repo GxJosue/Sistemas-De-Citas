@@ -1,0 +1,165 @@
+/* styles.css
+   Código movido desde el <style> del HTML original.
+*/
+
+/* Reset/normalización mínima */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  background-color: #B0B0B0;
+  margin: 0;
+  padding: 0;
+}
+
+.header {
+  background-color: #333;
+  color: white;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+}
+
+.header img {
+  width: 150px;
+  height: auto;
+}
+
+.container {
+  max-width: 600px;
+  margin: 20px auto;
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+}
+
+.hora-disponible, .hora-ocupada, button {
+  padding: 10px;
+  margin: 5px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.hora-disponible {
+  background-color: rgb(151, 153, 151);
+  color: white;
+}
+
+.hora-ocupada {
+  background-color: lightcoral;
+  color: #000000;
+  cursor: not-allowed;
+}
+
+.lista-citas {
+  margin-top: 20px;
+  text-align: left;
+}
+
+.lista-citas li {
+  background: white;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.editar-btn {
+  background-color: #007bff;
+  color: white;
+  margin-left: 8px;
+}
+
+.eliminar-btn {
+  background-color: #dc3545;
+  color: white;
+  margin-left: 8px;
+}
+
+/* Estilos para el modal */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-contenido {
+  background-color: white;
+  padding: 20px;
+  border-radius: 10px;
+  width: 80%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+}
+
+.modal input {
+  width: 90%;
+  padding: 10px;
+  margin: 10px 0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.modal-botones {
+  margin-top: 10px;
+}
+
+.modal-botones button {
+  padding: 10px 15px;
+  margin: 5px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.btn-confirmar {
+  background-color: #28a745;
+  color: white;
+}
+
+.btn-cancelar {
+  background-color: #dc3545;
+  color: white;
+}
+
+/* Estilos para el modal de edición (se superponen con las clases generales) */
+#modal-editar .btn-confirmar {
+  background-color: #007bff;
+}
+
+/* Estilos generales para los botones de los días */
+#dias-de-la-semana button {
+  padding: 10px 20px;
+  margin: 5px;
+  border: 1px solid #ccc;
+  background-color: #f9f9f9;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+#dias-de-la-semana button.dia-actual {
+  background-color: #ccc;
+  color: rgb(0, 0, 0);
+  border-color: #ccc;
+}
+
+#dias-de-la-semana button:hover {
+  background-color: #ddd;
+}
