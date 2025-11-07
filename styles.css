@@ -1,165 +1,217 @@
-/* styles.css
-   Código movido desde el <style> del HTML original.
-*/
+/* styles.css (mejorado: modales, botones, toasts, animaciones, accesibilidad) */
 
 /* Reset/normalización mínima */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+:root{
+  --bg: #f5f6f7;
+  --card: #ffffff;
+  --muted: #6c757d;
+  --primary: #0d6efd;
+  --success: #28a745;
+  --danger: #dc3545;
+  --accent: #ffb703;
+  --glass: rgba(255,255,255,0.7);
+  --shadow: 0 6px 20px rgba(0,0,0,0.12);
+  --radius: 10px;
+  --max-width: 760px;
+}
+
+/* Body y layout */
 body {
-  font-family: Arial, sans-serif;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   text-align: center;
-  background-color: #B0B0B0;
+  background: linear-gradient(180deg,#dfe9f3 0%, #ffffff 100%);
+  color: #222;
   margin: 0;
   padding: 0;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
 }
 
 .header {
-  background-color: #333;
+  background-color: #222831;
   color: white;
-  padding: 20px;
+  padding: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 15px;
+  position: relative;
 }
 
 .header img {
-  width: 150px;
+  width: 110px;
   height: auto;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
 }
 
+.header h1 {
+  font-size: 1.4rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+/* Auth area */
+.auth-area {
+  position: absolute;
+  right: 18px;
+  top: 14px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+/* Container principal */
 .container {
-  max-width: 600px;
+  max-width: var(--max-width);
   margin: 20px auto;
-  padding: 20px;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+  padding: 22px;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
-.hora-disponible, .hora-ocupada, button {
-  padding: 10px;
-  margin: 5px;
-  border: none;
-  border-radius: 5px;
+/* Dias y horarios */
+#dias-de-la-semana {
+  margin-bottom: 12px;
+}
+#dias-de-la-semana button {
+  padding: 10px 14px;
+  margin: 6px;
+  border: 1px solid #e6e8eb;
+  background-color: #fafafa;
   cursor: pointer;
+  border-radius: 8px;
+  transition: transform .12s ease, background-color .12s;
+  min-width: 92px;
 }
+#dias-de-la-semana button:hover { transform: translateY(-2px); background:#f0f4ff; }
+#dias-de-la-semana button.dia-actual { background:#e7eefc; color: var(--primary); border-color: #d7e6ff; }
 
-.hora-disponible {
-  background-color: rgb(151, 153, 151);
-  color: white;
+/* Horarios */
+#horarios { margin: 12px 0 20px; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+.hora-disponible, .hora-ocupada, button {
+  padding: 10px 14px;
+  margin: 6px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  min-width: 110px;
+  box-shadow: 0 3px 8px rgba(15,20,25,0.06);
+  transition: transform .12s, opacity .12s;
 }
+.hora-disponible { background: linear-gradient(180deg,#6c757d,#4f5456); color:white; }
+.hora-disponible:hover { transform: translateY(-3px); }
+.hora-ocupada { background: linear-gradient(180deg,#f8d7da,#f1b0b7); color:#3a1a1f; cursor:not-allowed; opacity:0.95; }
 
-.hora-ocupada {
-  background-color: lightcoral;
-  color: #000000;
-  cursor: not-allowed;
-}
-
+/* Lista de citas */
+.list-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top: 8px; }
 .lista-citas {
-  margin-top: 20px;
+  margin-top: 12px;
   text-align: left;
+  padding: 8px;
+  list-style:none;
 }
-
 .lista-citas li {
-  background: white;
-  padding: 8px 10px;
-  border-radius: 6px;
-  margin-bottom: 8px;
-  border: 1px solid #eee;
+  background: linear-gradient(180deg,#ffffff,#fbfbfb);
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #f0f0f2;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(19,21,26,0.04);
 }
+.lista-citas li span { font-size: 0.95rem; color:#1f2937; }
+.editar-btn { background-color: #0d6efd; color: white; padding:8px 10px; border-radius:8px; border:none; cursor:pointer; }
+.eliminar-btn { background-color: #dc3545; color: white; padding:8px 10px; border-radius:8px; border:none; cursor:pointer; }
 
-.editar-btn {
-  background-color: #007bff;
-  color: white;
-  margin-left: 8px;
-}
+/* Botones globales (clases útiles) */
+.btn { padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer; font-weight:600; }
+.btn-primary { background: linear-gradient(180deg,var(--primary), #0b5ed7); color:white; box-shadow: 0 6px 18px rgba(13,110,253,0.14); }
+.btn-secondary { background: #6c757d; color:white; }
+.btn-danger { background: linear-gradient(180deg,var(--danger), #b02a37); color:white; }
 
-.eliminar-btn {
-  background-color: #dc3545;
-  color: white;
-  margin-left: 8px;
-}
-
-/* Estilos para el modal */
+/* Modal overlay y contenido (mejorado) */
 .modal {
   display: none;
   position: fixed;
-  z-index: 1000;
+  z-index: 1100;
   left: 0;
   top: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(11,18,30,0.45);
+  backdrop-filter: blur(4px) saturate(1.05);
   justify-content: center;
   align-items: center;
+  padding: 20px;
+  overflow: auto;
 }
+.modal.show { display:flex; }
 
 .modal-contenido {
-  background-color: white;
-  padding: 20px;
-  border-radius: 10px;
-  width: 80%;
-  max-width: 400px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,250,250,0.98));
+  padding: 18px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 440px;
   text-align: center;
-  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 18px 48px rgba(10,20,40,0.12);
+  transform: translateY(18px) scale(.98);
+  opacity: 0;
+  transition: transform .22s cubic-bezier(.2,.9,.2,1), opacity .22s;
+}
+.modal.show .modal-contenido { transform: translateY(0) scale(1); opacity: 1; }
+
+.modal input[type="text"],
+.modal input[type="tel"] {
+  width: 92%;
+  padding: 12px;
+  margin: 10px auto;
+  border: 1px solid #ebeef2;
+  border-radius: 8px;
+  font-size: 0.95rem;
 }
 
-.modal input {
-  width: 90%;
-  padding: 10px;
-  margin: 10px 0;
-  border: 1px solid #ccc;
-  border-radius: 5px;
+/* Botones dentro del modal */
+.modal-botones { display:flex; justify-content:center; gap:10px; margin-top: 8px; flex-wrap:wrap; }
+
+/* Small screens */
+@media (max-width:520px) {
+  .modal-contenido { padding: 14px; width: 95%; max-width: 95%; }
+  #dias-de-la-semana button { min-width: 82px; padding: 8px 10px; }
+  .hora-disponible { min-width: 92px; padding: 8px 10px; }
 }
 
-.modal-botones {
-  margin-top: 10px;
+/* Toasts */
+#toast-container {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 9999;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
 }
+.toast {
+  background: #222;
+  color: #fff;
+  padding: 12px 14px;
+  border-radius: 8px;
+  min-width: 220px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: transform .18s, opacity .18s;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { background: linear-gradient(90deg,#2dd4bf,#12b886); }
+.toast.error { background: linear-gradient(90deg,#ff6b6b,#e12d39); }
 
-.modal-botones button {
-  padding: 10px 15px;
-  margin: 5px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.btn-confirmar {
-  background-color: #28a745;
-  color: white;
-}
-
-.btn-cancelar {
-  background-color: #dc3545;
-  color: white;
-}
-
-/* Estilos para el modal de edición (se superponen con las clases generales) */
-#modal-editar .btn-confirmar {
-  background-color: #007bff;
-}
-
-/* Estilos generales para los botones de los días */
-#dias-de-la-semana button {
-  padding: 10px 20px;
-  margin: 5px;
-  border: 1px solid #ccc;
-  background-color: #f9f9f9;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-#dias-de-la-semana button.dia-actual {
-  background-color: #ccc;
-  color: rgb(0, 0, 0);
-  border-color: #ccc;
-}
-
-#dias-de-la-semana button:hover {
-  background-color: #ddd;
-}
+/* Small aesthetic */
+.modal-contenido h2, .modal-contenido h3 { margin-bottom:6px; color:#111827; }
