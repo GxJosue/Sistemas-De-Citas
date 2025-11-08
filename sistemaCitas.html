@@ -22,7 +22,18 @@
   <div class="container">
     <h2>Selecciona un día y un horario disponible</h2>
 
-    <div id="dias-de-la-semana">
+    <!-- Calendario mensual -->
+    <div id="calendar-container" class="calendar-container" aria-hidden="false">
+      <div class="calendar-header">
+        <button id="cal-prev" class="btn btn-secondary" aria-label="Mes anterior">&lt;</button>
+        <div id="cal-title" class="cal-title" aria-live="polite"></div>
+        <button id="cal-next" class="btn btn-secondary" aria-label="Mes siguiente">&gt;</button>
+      </div>
+      <div id="calendar" class="calendar" role="grid" aria-label="Calendario mensual"></div>
+    </div>
+
+    <div id="dias-de-la-semana" style="display:none;">
+      <!-- Oculto: mantenido por compatibilidad si lo necesitas -->
       <button class="dia-btn" data-dia="Lunes">Lunes</button>
       <button class="dia-btn" data-dia="Martes">Martes</button>
       <button class="dia-btn" data-dia="Miércoles">Miércoles</button>
@@ -32,13 +43,49 @@
       <button class="dia-btn" data-dia="Domingo">Domingo</button>
     </div>
 
-    <div id="horarios"></div>
+    <div id="horarios" aria-live="polite"></div>
 
     <div class="list-header">
       <h3>Citas Agendadas</h3>
-      <button id="reset-all" class="eliminar-btn appt-btn" style="display:none">Resetear todas las citas (admin)</button>
+
+      <!-- Contenedor de filtros admin (se muestra solo vía JS si el usuario es admin) -->
+      <div id="admin-filters" class="admin-filters" style="display:none;">
+        <select id="filter-month" class="filter-control" aria-label="Filtrar por mes">
+          <option value="all">Todos los meses</option>
+          <option value="1">Enero</option>
+          <option value="2">Febrero</option>
+          <option value="3">Marzo</option>
+          <option value="4">Abril</option>
+          <option value="5">Mayo</option>
+          <option value="6">Junio</option>
+          <option value="7">Julio</option>
+          <option value="8">Agosto</option>
+          <option value="9">Septiembre</option>
+          <option value="10">Octubre</option>
+          <option value="11">Noviembre</option>
+          <option value="12">Diciembre</option>
+        </select>
+
+        <select id="filter-day" class="filter-control" aria-label="Filtrar por día">
+          <option value="all">Todos los días</option>
+          <option value="Lunes">Lunes</option>
+          <option value="Martes">Martes</option>
+          <option value="Miércoles">Miércoles</option>
+          <option value="Jueves">Jueves</option>
+          <option value="Viernes">Viernes</option>
+          <option value="Sábado">Sábado</option>
+          <option value="Domingo">Domingo</option>
+        </select>
+
+        <input id="filter-q" class="filter-control" type="text" placeholder="Buscar por nombre, teléfono o userId" aria-label="Buscar citas">
+
+        <button id="filter-clear" class="btn btn-secondary">Limpiar</button>
+
+        <button id="reset-all" class="eliminar-btn appt-btn" style="display:none">Resetear todas las citas (admin)</button>
+      </div>
     </div>
-    <ul id="lista-citas" class="lista-citas"></ul>
+
+    <ul id="lista-citas" class="lista-citas" aria-live="polite"></ul>
   </div>
 
   <!-- Modales existentes (no los quité para mantener compatibilidad) -->
