@@ -41,7 +41,7 @@
     <ul id="lista-citas" class="lista-citas"></ul>
   </div>
 
-  <!-- Modales -->
+  <!-- Modales existentes (no los quité para mantener compatibilidad) -->
   <div id="modal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="modal-title">
     <div class="modal-contenido" role="document">
       <h2 id="modal-title">Agendar Cita</h2>
@@ -112,6 +112,18 @@
       <div class="modal-botones">
         <button id="admin-confirm-approve" class="btn btn-danger">Confirmar</button>
         <button id="admin-confirm-cancel" class="btn btn-secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nuevo: Modal que pide iniciar sesión (reemplaza alert) -->
+  <div id="modal-login-required" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-contenido">
+      <h3>Inicia sesión</h3>
+      <p>Debes iniciar sesión con Google para ver horarios y agendar una cita.</p>
+      <div class="modal-botones">
+        <button id="login-now-btn" class="btn btn-primary">Iniciar sesión</button>
+        <button id="login-cancel-btn" class="btn btn-secondary">Cancelar</button>
       </div>
     </div>
   </div>

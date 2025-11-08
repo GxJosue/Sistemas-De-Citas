@@ -144,3 +144,41 @@ body {
 .toast.show { opacity: 1; transform: translateY(0); }
 .toast.success { background: linear-gradient(90deg,#2dd4bf,#12b886); }
 .toast.error { background: linear-gradient(90deg,#ff6b6b,#e12d39); }
+
+/* Ajustes para mostrar nombre en una línea y día · hora en la siguiente */
+.appt-name {
+  white-space: nowrap;           /* evita salto de línea en el nombre */
+  overflow: hidden;
+  text-overflow: ellipsis;       /* ... si es muy largo */
+  font-weight: 700;
+  color: #0b2545;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+/* Meta (día · hora) en su propia línea, estilo sutil */
+.appt-meta {
+  display: block;
+  margin-top: 6px;
+  color: #374151;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* (Opcional) teléfono pequeño si quieres mostrarlo debajo como referencia */
+.appt-phone-small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* Asegurar en móvil que no colapse: */
+@media (max-width: 600px) {
+  .appt-name {
+    font-size: 1rem;
+  }
+  .appt-meta {
+    font-size: 0.95rem;
+  }
+}

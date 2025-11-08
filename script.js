@@ -1,15 +1,15 @@
-// script.js (mejorado UI: modales, focus trap, toasts, confirm admin)
-// Import Firebase as before
+// script.js (completo, listo para reemplazar)
+// Import Firebase as modules
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-app.js";
 import {
   getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc,
-  query as q, where, getDoc
+  getDocs, query as q, where, getDoc
 } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-auth.js";
 
-/* ---------- Configuración Firebase (igual) ---------- */
+/* ---------- Configuración Firebase ---------- */
 const firebaseConfig = {
   apiKey: "AIzaSyDeSHWfxU-lU-ID4YvaQQm479CADhXowWE",
   authDomain: "barberiacitas-94e43.firebaseapp.com",
@@ -48,8 +48,6 @@ let activeModal = null;
 let lastFocusedElement = null;
 let pendingAdminAction = null; // { type: 'delete'|'reset', id?: string }
 
-// openModal y closeModal - versión corregida y robusta
-
 function openModal(id) {
   const modal = document.getElementById(id);
   if (!modal) return;
@@ -57,7 +55,6 @@ function openModal(id) {
   lastFocusedElement = document.activeElement;
 
   // Asegurarnos de quitar cualquier display inline que impida mostrar el modal.
-  // Usamos 'flex' porque nuestros estilos .modal.show usan display:flex.
   modal.style.display = 'flex';
 
   // Mostrar visualmente con clase (activa animaciones)
@@ -85,11 +82,9 @@ function closeModal(id) {
   modal.setAttribute('aria-hidden', 'true');
 
   // Forzamos ocultado con display none para evitar overlays residuales
-  // (es importante porque puede haber lugares que hayan usado inline styles).
   try {
     modal.style.display = 'none';
   } catch (e) {
-    // si no se puede setear style, ignoramos el error
     console.warn('closeModal: no se pudo ajustar modal.style.display', e);
   }
 
@@ -110,20 +105,14 @@ function closeModal(id) {
 
 function modalKeyHandler(e) {
   if (e.key === 'Escape') {
-    //Cerrar usando dataset o botón cancel si existe
     if (activeModal) {
-      // cerrar el modal actual; buscar botón cancelar dentro
       const btnCancel = activeModal.querySelector('.btn-secondary');
       if (btnCancel) btnCancel.click();
       else closeModal(activeModal.id);
     }
   }
-  if (e.key === 'Tab') {
-    // managed by focusin/trapFocus
-  }
 }
 
-// focus trap básico: si focus sale del modal, regresarlo
 function trapFocus(e) {
   if (!activeModal) return;
   const focusables = Array.from(activeModal.querySelectorAll('input, button, a, [tabindex]:not([tabindex="-1"])'))
@@ -131,11 +120,9 @@ function trapFocus(e) {
   if (focusables.length === 0) return;
   const first = focusables[0];
   const last = focusables[focusables.length - 1];
-  const focused = document.activeElement;
-  if (e.relatedTarget === null && focused === document.body) { // initial
+  if (e.relatedTarget === null && document.activeElement === document.body) {
     first.focus();
   }
-  // ensure tab cycles
   activeModal.addEventListener('keydown', function(ev) {
     if (ev.key !== 'Tab') return;
     if (ev.shiftKey) { // shift + tab
@@ -152,12 +139,11 @@ function trapFocus(e) {
   }, { once: true });
 }
 
-/* For compatibility with previous code (keeps calls intact) */
+/* Compatibilidad con llamadas anteriores */
 function mostrarModal(id) { openModal(id); }
 function ocultarModal(id) { closeModal(id); }
 
 /* Toasts */
-const toastContainer = document.getElementById('toast-container');
 function showToast(message, type = 'success', duration = 3000) {
   const container = document.getElementById('toast-container');
   if (!container) return;
@@ -169,7 +155,7 @@ function showToast(message, type = 'success', duration = 3000) {
   setTimeout(() => t.classList.add('show'), 20);
   setTimeout(() => {
     t.classList.remove('show');
-    setTimeout(() => container.removeChild(t), 220);
+    setTimeout(() => { try { container.removeChild(t); } catch (e) {} }, 220);
   }, duration);
 }
 
@@ -221,7 +207,8 @@ function cargarHorariosPara(dia) {
     return;
   }
   if (!currentUser) {
-    alert("Debes iniciar sesión con Google para ver horarios y agendar una cita.");
+    // abrir modal en vez de alert
+    openModal('modal-login-required');
     return;
   }
   diaSeleccionado = dia;
@@ -231,7 +218,7 @@ function cargarHorariosPara(dia) {
 /* ---------- Agendar / Confirmar Cita ---------- */
 function agendarCita(dia, hora) {
   if (!currentUser) {
-    alert("Debes iniciar sesión con Google para agendar.");
+    openModal('modal-login-required');
     return;
   }
   diaCitaSeleccionado = dia;
@@ -247,7 +234,7 @@ async function confirmarCita() {
   const nombre = nombreInput.value.trim();
   const telefono = telefonoInput.value.trim();
   if (!nombre || !telefono) {
-    alert("Debe ingresar un nombre y un número válido.");
+    showToast("Debe ingresar un nombre y un número válido.", "error");
     return;
   }
 
@@ -310,7 +297,7 @@ function startListaListener() {
   }
 }
 
-// Reemplaza la función renderLista por esta versión que crea estructura semántica y clases útiles
+// Reemplaza la función renderLista por esta versión (mantiene estructura .appt-card/.appt-info/.appt-actions)
 function renderLista(snapshot) {
   const listaCitas = document.getElementById("lista-citas");
   if (!listaCitas) return;
@@ -320,36 +307,40 @@ function renderLista(snapshot) {
     const cita = docSnap.data();
     const citaId = docSnap.id;
 
-    // Estructura del item mejorada: <li> <div.appt-info>... </div> <div.appt-actions>... </div> </li>
+    // Estructura del item mejorada: <li class="appt-card"> <div.appt-info>... </div> <div.appt-actions>... </div> </li>
     const li = document.createElement("li");
     li.className = "appt-card";
 
-    // Info principal (nombre, teléfono, hora, día)
+    // Info principal (nombre en UNA línea, luego día y hora en la siguiente)
     const info = document.createElement("div");
     info.className = "appt-info";
 
+    // Normalizar nombre: quita saltos múltiples/espacios extras
+    const rawName = (cita.nombre || "").replace(/\s+/g, " ").trim();
     const nombreEl = document.createElement("div");
     nombreEl.className = "appt-name";
-    nombreEl.textContent = cita.nombre || "Sin nombre";
+    nombreEl.textContent = rawName || "Sin nombre";
 
-    const telefonoEl = document.createElement("div");
-    telefonoEl.className = "appt-phone";
-    telefonoEl.textContent = cita.telefono || "-";
-
+    // Segunda línea: día y hora (día primero)
     const metaEl = document.createElement("div");
     metaEl.className = "appt-meta";
-    // hora y dia en líneas separadas para mejor lectura en móvil
-    metaEl.innerHTML = `<span class="appt-time">${cita.hora || "-"}</span> <span class="sep">·</span> <span class="appt-day">${cita.dia || "-"}</span>`;
+    const dia = cita.dia || "-";
+    const hora = cita.hora || "-";
+    metaEl.textContent = `${dia} · ${hora}`;
+
+    // (Opcional) si quieres mostrar teléfono en una tercera línea en pequeño, descomenta:
+    const telefonoEl = document.createElement("div");
+    telefonoEl.className = "appt-phone-small";
+    telefonoEl.textContent = cita.telefono || "";
 
     info.appendChild(nombreEl);
-    info.appendChild(telefonoEl);
     info.appendChild(metaEl);
+    info.appendChild(telefonoEl); // opcional
 
     // Acciones (botones)
     const accionesWrapper = document.createElement("div");
     accionesWrapper.className = "appt-actions";
 
-    // Si la cita pertenece al usuario, permitimos editar/eliminar
     if (cita.userId === (currentUser && currentUser.uid)) {
       const btnEditar = document.createElement("button");
       btnEditar.textContent = "Editar";
@@ -364,7 +355,6 @@ function renderLista(snapshot) {
       accionesWrapper.appendChild(btnEliminar);
     }
 
-    // Admin puede eliminar cualquiera desde la UI (usa confirmación adicional)
     if (isAdmin && cita.userId !== (currentUser && currentUser.uid)) {
       const btnEliminarAdmin = document.createElement("button");
       btnEliminarAdmin.textContent = "Eliminar (admin)";
@@ -373,7 +363,6 @@ function renderLista(snapshot) {
       accionesWrapper.appendChild(btnEliminarAdmin);
     }
 
-    // Si admin, también mostrar owner (en la info)
     if (isAdmin) {
       const ownerEl = document.createElement("div");
       ownerEl.className = "appt-owner";
@@ -381,15 +370,13 @@ function renderLista(snapshot) {
       info.appendChild(ownerEl);
     }
 
-    // Appending
     li.appendChild(info);
     if (accionesWrapper.childElementCount > 0) li.appendChild(accionesWrapper);
     listaCitas.appendChild(li);
   });
 }
 
-/* ---------- Editar cita (igual, con toasts) ---------- */
-// Reemplaza la función abrirModalEditar en script.js por esta versión:
+/* ---------- Editar cita ---------- */
 function abrirModalEditar(id, cita) {
   const modalEditar = document.getElementById("modal-editar");
   const modalConfirmacion = document.getElementById("modal-confirmacion-edicion");
@@ -404,10 +391,8 @@ function abrirModalEditar(id, cita) {
     return;
   }
 
-  // Usar openModal en vez de manipular style.display manualmente
   openModal("modal-editar");
 
-  // Rellenar campos
   nombreInput.value = cita.nombre || "";
   telefonoInput.value = cita.telefono || "";
 
@@ -416,7 +401,6 @@ function abrirModalEditar(id, cita) {
   btnCancelar.replaceWith(btnCancelar.cloneNode(true));
   btnCerrarConfirmacion.replaceWith(btnCerrarConfirmacion.cloneNode(true));
 
-  // Re-obtener referencias a los botones "nuevos"
   const nuevoBtnGuardar = document.getElementById("guardar-edicion");
   const nuevoBtnCancelar = document.getElementById("cancelar-edicion");
   const nuevoBtnCerrarConfirmacion = document.getElementById("cerrar-confirmacion-edicion");
@@ -428,7 +412,6 @@ function abrirModalEditar(id, cita) {
         nombre: nombreInput.value,
         telefono: telefonoInput.value
       });
-      // Cerrar modal correctamente usando closeModal
       closeModal("modal-editar");
       showToast("Cita actualizada", "success");
       openModal("modal-confirmacion-edicion");
@@ -478,7 +461,6 @@ function confirmAdminDelete(citaId) {
     return;
   }
   pendingAdminAction = { type: 'delete', id: citaId };
-  // abrir modal admin confirm
   openModal('modal-admin-confirm');
   const input = document.getElementById('admin-confirm-input');
   if (input) { input.value = ''; input.focus(); }
@@ -496,11 +478,7 @@ async function performPendingAdminAction() {
     }
   } else if (pendingAdminAction.type === 'reset') {
     try {
-      // delete all
-      const snapshot = await new Promise((res, rej) => {
-        const col = collection(db, "citas");
-        const unsub = onSnapshot(col, s => { unsub(); res(s); }, err => rej(err));
-      });
+      const snapshot = await getDocs(collection(db, "citas"));
       const promises = [];
       snapshot.forEach(docSnap => promises.push(deleteDoc(doc(db, "citas", docSnap.id))));
       await Promise.all(promises);
@@ -514,9 +492,9 @@ async function performPendingAdminAction() {
 }
 
 /* ---------- Reset global (admin) ---------- */
-async function resetearTodasLasCitas() {
+function resetearTodasLasCitas() {
   if (!isAdmin) {
-    alert("No estás autorizado.");
+    showToast("No estás autorizado.", "error");
     return;
   }
   pendingAdminAction = { type: 'reset' };
@@ -525,25 +503,7 @@ async function resetearTodasLasCitas() {
   if (input) { input.value = ''; input.focus(); }
 }
 
-/* admin modal approve/cancel binding */
-document.addEventListener('DOMContentLoaded', () => {
-  const approve = document.getElementById('admin-confirm-approve');
-  const cancel = document.getElementById('admin-confirm-cancel');
-  const input = document.getElementById('admin-confirm-input');
-  if (approve) {
-    approve.addEventListener('click', async () => {
-      if (!input) return;
-      if (input.value.trim().toUpperCase() !== 'ELIMINAR') {
-        showToast('Escribe ELIMINAR para confirmar', 'error');
-        input.focus();
-        return;
-      }
-      closeModal('modal-admin-confirm');
-      await performPendingAdminAction();
-    });
-  }
-  if (cancel) cancel.addEventListener('click', () => { pendingAdminAction = null; closeModal('modal-admin-confirm'); });
-});
+/* admin modal approve/cancel binding se agregará en DOMContentLoaded */
 
 /* ---------- Auth: login/logout y control de estado ---------- */
 async function doLogin() {
@@ -605,7 +565,7 @@ function updateAuthUI(user, adminFlag) {
   authArea.appendChild(btnLogout);
 
   // Mostrar reset si admin
-  const resetBtn = document.getElementById("reset-all"); 
+  const resetBtn = document.getElementById("reset-all");
   if (adminFlag) {
     resetBtn.style.display = "inline-block";
   } else {
@@ -615,7 +575,7 @@ function updateAuthUI(user, adminFlag) {
 
 /* ---------- Inicialización y binding de eventos ---------- */
 document.addEventListener("DOMContentLoaded", () => {
-  // Días
+  // Botones de días
   const botonesDias = document.querySelectorAll("#dias-de-la-semana .dia-btn");
   botonesDias.forEach(boton => {
     boton.addEventListener("click", function () {
@@ -629,12 +589,12 @@ document.addEventListener("DOMContentLoaded", () => {
         this.classList.remove("dia-actual");
       } else {
         diaSeleccionado = dia;
-        cargarHorariosPara(diaSeleccionado); 
+        cargarHorariosPara(diaSeleccionado);
       }
     });
   });
 
-  // Modal agendar (botones)
+  // Confirmar / Cancelar citas (modal agendar)
   const btnConfirmar = document.getElementById("confirmar-cita");
   const btnCancelarModal = document.getElementById("cancelar-modal");
   if (btnConfirmar) btnConfirmar.addEventListener("click", confirmarCita);
@@ -656,23 +616,69 @@ document.addEventListener("DOMContentLoaded", () => {
   const resetAllBtn = document.getElementById("reset-all");
   if (resetAllBtn) resetAllBtn.addEventListener("click", resetearTodasLasCitas);
 
-  // Lista de citas (se ajustará cuando haya user)
-  startListaListener();
+  // Login-required modal buttons
+  const loginNowBtn = document.getElementById('login-now-btn');
+  const loginCancelBtn = document.getElementById('login-cancel-btn');
 
-  // Observador de auth
-  onAuthStateChanged(auth, async (user) => {
-    currentUser = user;
-    if (!user) {
-      isAdmin = false;
-      updateAuthUI(null, false);
-      if (unsubscribeLista) { unsubscribeLista(); unsubscribeLista = null; }
-      if (unsubscribeHorarios) { unsubscribeHorarios(); unsubscribeHorarios = null; }
-      document.getElementById("lista-citas").innerHTML = "<li>Inicia sesión para ver y gestionar tus citas.</li>";
-      return;
-    }
-    isAdmin = await checkAdminStatus(user.uid);
-    updateAuthUI(user, isAdmin);
-    startHorariosListener(diaSeleccionado || Object.keys(horarios)[0]);
-    startListaListener();
-  });
+  if (loginNowBtn) {
+    loginNowBtn.addEventListener('click', async () => {
+      closeModal('modal-login-required');
+      try {
+        await doLogin();
+      } catch (err) {
+        console.error("Error en doLogin desde modal:", err);
+      }
+    });
+  }
+
+  if (loginCancelBtn) {
+    loginCancelBtn.addEventListener('click', () => {
+      closeModal('modal-login-required');
+    });
+  }
+
+  // Admin confirm modal bindings
+  const approve = document.getElementById('admin-confirm-approve');
+  const cancel = document.getElementById('admin-confirm-cancel');
+  const input = document.getElementById('admin-confirm-input');
+  if (approve) {
+    approve.addEventListener('click', async () => {
+      if (!input) return;
+      if (input.value.trim().toUpperCase() !== 'ELIMINAR') {
+        showToast('Escribe ELIMINAR para confirmar', 'error');
+        input.focus();
+        return;
+      }
+      closeModal('modal-admin-confirm');
+      await performPendingAdminAction();
+    });
+  }
+  if (cancel) cancel.addEventListener('click', () => { pendingAdminAction = null; closeModal('modal-admin-confirm'); });
+
+  // Levantar escucha y renderizado de citas
+  startListaListener();
+});
+
+/* Observador de auth */
+onAuthStateChanged(auth, async (user) => {
+  currentUser = user;
+  if (!user) {
+    isAdmin = false;
+    updateAuthUI(null, false);
+    if (unsubscribeLista) { unsubscribeLista(); unsubscribeLista = null; }
+    if (unsubscribeHorarios) { unsubscribeHorarios(); unsubscribeHorarios = null; }
+    const lista = document.getElementById("lista-citas");
+    if (lista) lista.innerHTML = "<li>Inicia sesión para ver y gestionar tus citas.</li>";
+    return;
+  }
+  isAdmin = await checkAdminStatus(user.uid);
+  updateAuthUI(user, isAdmin);
+
+  // Si el modal de "login-required" está abierto, cerrarlo
+  if (activeModal && activeModal.id === 'modal-login-required') {
+    closeModal('modal-login-required');
+  }
+
+  startHorariosListener(diaSeleccionado || Object.keys(horarios)[0]);
+  startListaListener();
 });
