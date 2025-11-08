@@ -1,5 +1,6 @@
 // script.js (completo) - incluye calendario mensual, validación "mínimo 1 día",
-// formateo de fecha, corrección de bloqueo por citas puntuales, y filtros/orden para admin
+// formateo de fecha, corrección de bloqueo por citas puntuales, filtros/orden para admin
+// y modal compacto de filtros para móviles (integrado).
 // Import Firebase as modules
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-app.js";
 import {
@@ -731,6 +732,9 @@ function updateAuthUI(user, adminFlag) {
     // hide admin filters
     const af = document.getElementById("admin-filters");
     if (af) af.style.display = "none";
+    // hide compact toggle
+    const toggle = document.getElementById("admin-filters-toggle");
+    if (toggle) toggle.style.display = "none";
     return;
   }
   const info = document.createElement("span");
@@ -743,14 +747,17 @@ function updateAuthUI(user, adminFlag) {
   btnLogout.addEventListener("click", doLogout);
   authArea.appendChild(btnLogout);
   const resetBtn = document.getElementById("reset-all");
+  const toggle = document.getElementById("admin-filters-toggle");
   if (adminFlag) {
-    resetBtn.style.display = "inline-block";
+    if (resetBtn) resetBtn.style.display = "inline-block";
     const af = document.getElementById("admin-filters");
     if (af) af.style.display = "flex";
+    if (toggle) toggle.style.display = ""; // allow CSS/media queries to decide
   } else {
-    resetBtn.style.display = "none";
+    if (resetBtn) resetBtn.style.display = "none";
     const af = document.getElementById("admin-filters");
     if (af) af.style.display = "none";
+    if (toggle) toggle.style.display = "none";
   }
 }
 
@@ -865,6 +872,54 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Levantar escucha y renderizado de citas
   startListaListener();
+
+  /* ---------- Compact filters modal (móvil) bindings ---------- */
+  const filtersToggle = document.getElementById('admin-filters-toggle');
+  const filtersModal = document.getElementById('modal-admin-filters');
+  const filtersModalContent = document.getElementById('modal-admin-filters-content');
+  const filtersApply = document.getElementById('modal-admin-filters-apply');
+  const filtersClose = document.getElementById('modal-admin-filters-close');
+  const adminFiltersEl = document.getElementById('admin-filters');
+
+  if (filtersToggle && filtersModal && filtersModalContent && filtersApply && filtersClose) {
+    filtersToggle.addEventListener('click', () => {
+      if (adminFiltersEl) {
+        // clone current HTML inside modal for editing
+        filtersModalContent.innerHTML = adminFiltersEl.innerHTML;
+        // ensure modal controls inside have same ids: they will, because innerHTML clones ids
+      } else {
+        filtersModalContent.innerHTML = '<p>No hay filtros disponibles.</p>';
+      }
+      openModal('modal-admin-filters');
+    });
+
+    filtersApply.addEventListener('click', () => {
+      const selMonth = filtersModalContent.querySelector('#filter-month');
+      const selDay = filtersModalContent.querySelector('#filter-day');
+      const inputQ = filtersModalContent.querySelector('#filter-q');
+
+      const realMonth = document.getElementById('filter-month');
+      const realDay = document.getElementById('filter-day');
+      const realQ = document.getElementById('filter-q');
+
+      if (selMonth && realMonth) realMonth.value = selMonth.value;
+      if (selDay && realDay) realDay.value = selDay.value;
+      if (inputQ && realQ) realQ.value = inputQ.value;
+
+      // trigger events so existing listeners update filters
+      const evChange = new Event('change', { bubbles: true });
+      const evInput = new Event('input', { bubbles: true });
+      if (realMonth) realMonth.dispatchEvent(evChange);
+      if (realDay) realDay.dispatchEvent(evChange);
+      if (realQ) realQ.dispatchEvent(evInput);
+
+      closeModal('modal-admin-filters');
+    });
+
+    filtersClose.addEventListener('click', () => closeModal('modal-admin-filters'));
+
+    // fallback ESC close handled by openModal/closeModal handlers
+  }
 });
 
 /* Observador de auth */

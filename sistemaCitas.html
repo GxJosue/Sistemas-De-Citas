@@ -48,6 +48,9 @@
     <div class="list-header">
       <h3>Citas Agendadas</h3>
 
+      <!-- Botón compacto para móviles: abre modal de filtros -->
+      <button id="admin-filters-toggle" class="btn btn-secondary mobile-only" title="Abrir filtros">Filtros</button>
+
       <!-- Contenedor de filtros admin (se muestra solo vía JS si el usuario es admin) -->
       <div id="admin-filters" class="admin-filters" style="display:none;">
         <select id="filter-month" class="filter-control" aria-label="Filtrar por mes">
@@ -81,7 +84,7 @@
 
         <button id="filter-clear" class="btn btn-secondary">Limpiar</button>
 
-        <button id="reset-all" class="eliminar-btn appt-btn" style="display:none">Resetear todas las citas (admin)</button>
+        <button id="reset-all" class="eliminar-btn appt-btn" style="display:none">Borrar todas las citas</button>
       </div>
     </div>
 
@@ -150,11 +153,23 @@
     </div>
   </div>
 
+  <!-- Modal compacto para filtros (móvil) -->
+  <div id="modal-admin-filters" class="modal" role="dialog" aria-hidden="true" style="display:none;">
+    <div class="modal-contenido">
+      <h3>Filtros</h3>
+      <div id="modal-admin-filters-content"></div>
+      <div class="modal-botones">
+        <button id="modal-admin-filters-apply" class="btn btn-primary">Aplicar</button>
+        <button id="modal-admin-filters-close" class="btn btn-secondary">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal de confirmación admin (requiere escribir ELIMINAR) -->
   <div id="modal-admin-confirm" class="modal" role="dialog" aria-hidden="true">
     <div class="modal-contenido">
-      <h3>Confirmación de administrador</h3>
-      <p>Para confirmar la acción administrativa escribe <strong>ELIMINAR</strong> en el campo y presiona "Confirmar".</p>
+      <h3>Confirmación</h3>
+      <p>Para confirmar la acción escribe <strong>ELIMINAR</strong> en el campo y presiona "Confirmar".</p>
       <input id="admin-confirm-input" type="text" placeholder="Escribe ELIMINAR" aria-label="Confirmación de administrador">
       <div class="modal-botones">
         <button id="admin-confirm-approve" class="btn btn-danger">Confirmar</button>
