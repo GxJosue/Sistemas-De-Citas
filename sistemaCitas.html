@@ -51,6 +51,9 @@
       <!-- Botón compacto para móviles: abre modal de filtros -->
       <button id="admin-filters-toggle" class="btn btn-secondary mobile-only" title="Abrir filtros">Filtros</button>
 
+      <!-- Botón de reset (AHORA FUERA del contenedor #admin-filters para evitar clonados) -->
+      <button id="reset-all" class="eliminar-btn appt-btn" style="display:none; margin-left:8px;">Borrar todas las citas (admin)</button>
+
       <!-- Contenedor de filtros admin (se muestra solo vía JS si el usuario es admin) -->
       <div id="admin-filters" class="admin-filters" style="display:none;">
         <select id="filter-month" class="filter-control" aria-label="Filtrar por mes">
@@ -83,8 +86,6 @@
         <input id="filter-q" class="filter-control" type="text" placeholder="Buscar por nombre, teléfono o userId" aria-label="Buscar citas">
 
         <button id="filter-clear" class="btn btn-secondary">Limpiar</button>
-
-        <button id="reset-all" class="eliminar-btn appt-btn" style="display:none">Borrar todas las citas</button>
       </div>
     </div>
 
@@ -169,7 +170,7 @@
   <div id="modal-admin-confirm" class="modal" role="dialog" aria-hidden="true">
     <div class="modal-contenido">
       <h3>Confirmación</h3>
-      <p>Para confirmar la acción escribe <strong>ELIMINAR</strong> en el campo y presiona "Confirmar".</p>
+      <p>Para confirmar la acción administrativa escribe <strong>ELIMINAR</strong> en el campo y presiona "Confirmar".</p>
       <input id="admin-confirm-input" type="text" placeholder="Escribe ELIMINAR" aria-label="Confirmación de administrador">
       <div class="modal-botones">
         <button id="admin-confirm-approve" class="btn btn-danger">Confirmar</button>
