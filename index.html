@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sistema de Citas - Barbería</title>
+
+  <!-- Enlaza el CSS separado -->
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" type="image/png" href="img/logo.webp">
+</head>
+<body>
+  <div class="header">
+    <img src="img/logo.webp" alt="Logo">
+    <h1>Barbería Free Style</h1>
+    <div id="auth-area" class="auth-area">
+      <!-- Rellenado por JS -->
+      <button id="login-btn" class="btn-auth">Iniciar sesión</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2>Selecciona un día y un horario disponible</h2>
+
+    <!-- Calendario mensual -->
+    <div id="calendar-container" class="calendar-container" aria-hidden="false">
+      <div class="calendar-header">
+        <button id="cal-prev" class="btn btn-secondary" aria-label="Mes anterior">&lt;</button>
+        <div id="cal-title" class="cal-title" aria-live="polite"></div>
+        <button id="cal-next" class="btn btn-secondary" aria-label="Mes siguiente">&gt;</button>
+      </div>
+      <div id="calendar" class="calendar" role="grid" aria-label="Calendario mensual"></div>
+    </div>
+
+    <div id="dias-de-la-semana" style="display:none;">
+      <!-- Oculto: mantenido por compatibilidad si lo necesitas -->
+      <button class="dia-btn" data-dia="Lunes">Lunes</button>
+      <button class="dia-btn" data-dia="Martes">Martes</button>
+      <button class="dia-btn" data-dia="Miércoles">Miércoles</button>
+      <button class="dia-btn" data-dia="Jueves">Jueves</button>
+      <button class="dia-btn" data-dia="Viernes">Viernes</button>
+      <button class="dia-btn" data-dia="Sábado">Sábado</button>
+      <button class="dia-btn" data-dia="Domingo">Domingo</button>
+    </div>
+
+    <div id="horarios" aria-live="polite"></div>
+
+    <div class="list-header">
+      <h3>Citas Agendadas</h3>
+
+      <!-- Botón compacto para móviles: abre modal de filtros -->
+      <button id="admin-filters-toggle" class="btn btn-secondary mobile-only" title="Abrir filtros">Filtros</button>
+
+      <!-- Botón de reset (AHORA FUERA del contenedor #admin-filters para evitar clonados) -->
+      <button id="reset-all" class="eliminar-btn appt-btn" style="display:none; margin-left:8px;">Borrar todas las citas (admin)</button>
+
+      <!-- Contenedor de filtros admin (se muestra solo vía JS si el usuario es admin) -->
+      <div id="admin-filters" class="admin-filters" style="display:none;">
+        <select id="filter-month" class="filter-control" aria-label="Filtrar por mes">
+          <option value="all">Todos los meses</option>
+          <option value="1">Enero</option>
+          <option value="2">Febrero</option>
+          <option value="3">Marzo</option>
+          <option value="4">Abril</option>
+          <option value="5">Mayo</option>
+          <option value="6">Junio</option>
+          <option value="7">Julio</option>
+          <option value="8">Agosto</option>
+          <option value="9">Septiembre</option>
+          <option value="10">Octubre</option>
+          <option value="11">Noviembre</option>
+          <option value="12">Diciembre</option>
+        </select>
+
+        <select id="filter-day" class="filter-control" aria-label="Filtrar por día">
+          <option value="all">Todos los días</option>
+          <option value="Lunes">Lunes</option>
+          <option value="Martes">Martes</option>
+          <option value="Miércoles">Miércoles</option>
+          <option value="Jueves">Jueves</option>
+          <option value="Viernes">Viernes</option>
+          <option value="Sábado">Sábado</option>
+          <option value="Domingo">Domingo</option>
+        </select>
+
+        <input id="filter-q" class="filter-control" type="text" placeholder="Buscar por nombre, teléfono o userId" aria-label="Buscar citas">
+
+        <button id="filter-clear" class="btn btn-secondary">Limpiar</button>
+      </div>
+    </div>
+
+    <ul id="lista-citas" class="lista-citas" aria-live="polite"></ul>
+  </div>
+
+  <!-- Modales existentes (no los quité para mantener compatibilidad) -->
+  <div id="modal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="modal-title">
+    <div class="modal-contenido" role="document">
+      <h2 id="modal-title">Agendar Cita</h2>
+      <input type="text" id="nombre" placeholder="Ingrese su nombre y apellido" autocomplete="name">
+      <input type="tel" id="telefono" placeholder="Ingrese su teléfono" autocomplete="tel">
+      <div class="modal-botones">
+        <button id="confirmar-cita" class="btn btn-primary">Confirmar</button>
+        <button id="cancelar-modal" class="btn btn-secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-confirmacion" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-contenido">
+      <p id="mensaje-confirmacion">Cita agendada correctamente.</p>
+      <div class="modal-botones">
+        <button id="cerrar-confirmacion" class="btn btn-primary">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-editar" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-contenido">
+      <p>Editar cita</p>
+      <input type="text" id="editar-nombre" placeholder="Nombre" autocomplete="name">
+      <input type="text" id="editar-telefono" placeholder="Teléfono" autocomplete="tel">
+      <div class="modal-botones">
+        <button id="guardar-edicion" class="btn btn-primary">Guardar</button>
+        <button id="cancelar-edicion" class="btn btn-secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-confirmacion-edicion" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-contenido">
+      <p>Cita actualizada correctamente.</p>
+      <div class="modal-botones">
+        <button id="cerrar-confirmacion-edicion" class="btn btn-primary">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-eliminar" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-contenido">
+      <p>¿Seguro que deseas eliminar esta cita?</p>
+      <div class="modal-botones">
+        <button id="confirmar-eliminar" class="btn btn-primary">Sí, eliminar</button>
+        <button id="cancelar-eliminar" class="btn btn-secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-eliminacion-exitosa" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-contenido">
+      <p>Cita eliminada correctamente.</p>
+      <div class="modal-botones">
+        <button id="cerrar-eliminacion-exitosa" class="btn btn-primary">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal compacto para filtros (móvil) -->
+  <div id="modal-admin-filters" class="modal" role="dialog" aria-hidden="true" style="display:none;">
+    <div class="modal-contenido">
+      <h3>Filtros</h3>
+      <div id="modal-admin-filters-content"></div>
+      <div class="modal-botones">
+        <button id="modal-admin-filters-apply" class="btn btn-primary">Aplicar</button>
+        <button id="modal-admin-filters-close" class="btn btn-secondary">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de confirmación admin (requiere escribir ELIMINAR) -->
+  <div id="modal-admin-confirm" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-contenido">
+      <h3>Confirmación</h3>
+      <p>Para confirmar la acción administrativa escribe <strong>ELIMINAR</strong> en el campo y presiona "Confirmar".</p>
+      <input id="admin-confirm-input" type="text" placeholder="Escribe ELIMINAR" aria-label="Confirmación de administrador">
+      <div class="modal-botones">
+        <button id="admin-confirm-approve" class="btn btn-danger">Confirmar</button>
+        <button id="admin-confirm-cancel" class="btn btn-secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nuevo: Modal que pide iniciar sesión (reemplaza alert) -->
+  <div id="modal-login-required" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-contenido">
+      <h3>Inicia sesión</h3>
+      <p>Debes iniciar sesión con Google para ver horarios y agendar una cita.</p>
+      <div class="modal-botones">
+        <button id="login-now-btn" class="btn btn-primary">Iniciar sesión</button>
+        <button id="login-cancel-btn" class="btn btn-secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Enlaza el JS separado (type="module" porque usamos imports de Firebase) -->
+  <script type="module" src="script.js"></script>
+</body>
+</html>
