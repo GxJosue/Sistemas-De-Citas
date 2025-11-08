@@ -605,7 +605,7 @@ function updateAuthUI(user, adminFlag) {
   authArea.appendChild(btnLogout);
 
   // Mostrar reset si admin
-  const resetBtn = document.getElementById("reset-all");
+  const resetBtn = document.getElementById("reset-all"); 
   if (adminFlag) {
     resetBtn.style.display = "inline-block";
   } else {
@@ -629,7 +629,7 @@ document.addEventListener("DOMContentLoaded", () => {
         this.classList.remove("dia-actual");
       } else {
         diaSeleccionado = dia;
-        cargarHorariosPara(diaSeleccionado);
+        cargarHorariosPara(diaSeleccionado); 
       }
     });
   });
