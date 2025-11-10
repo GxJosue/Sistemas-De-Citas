@@ -449,7 +449,7 @@ function renderLista(snapshot) {
     }
     if (isAdmin && cita.userId !== (currentUser && currentUser.uid)) {
       const btnEliminarAdmin = document.createElement("button");
-      btnEliminarAdmin.textContent = "Eliminar (admin)";
+      btnEliminarAdmin.textContent = "Eliminar";
       btnEliminarAdmin.className = "eliminar-btn appt-btn";
       btnEliminarAdmin.addEventListener("click", () => confirmAdminDelete(citaId));
       accionesWrapper.appendChild(btnEliminarAdmin);
