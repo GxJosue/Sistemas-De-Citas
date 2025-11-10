@@ -1,0 +1,30 @@
+# .github/workflows/sync-calendar.yml
+name: Sync Firestore -> Google Calendar
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # cada 5 minutos
+  workflow_dispatch: {}    # permite ejecutar manualmente desde Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install firebase-admin googleapis
+
+      - name: Run sync script
+        env:
+          FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          CALENDAR_ID: ${{ secrets.CALENDAR_ID }}
+          TIMEZONE: ${{ secrets.TIMEZONE }}
+        run: node ./scripts/sync-calendar.js
