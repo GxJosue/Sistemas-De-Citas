@@ -614,17 +614,39 @@ async function checkAdminStatus(uid) {
     return false;
   }
 }
+
+/* Helper: small inline Google "G" SVG (brand-ish) */
+function googleSVG() {
+  return `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path fill="#EA4335" d="M12.24 10.285v3.432h4.69c-.2 1.345-1.486 4.01-4.69 4.01-2.818 0-5.11-2.316-5.11-5.17s2.292-5.17 5.11-5.17c1.607 0 2.684.686 3.306 1.28l2.254-2.17C16.6 4.7 14.76 3.5 12.24 3.5 7.74 3.5 4 7.24 4 11.74s3.74 8.24 8.24 8.24c4.75 0 7.9-3.34 7.9-8.04 0-.54-.06-.94-.16-1.32H12.24z"/>
+  </svg>`;
+}
+
+/* Small logout SVG */
+function logoutSVG() {
+  return `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M16 17l5-5-5-5M21 12H9" />
+    <path stroke-linecap="round" stroke-linejoin="round" d="M12 19H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5" />
+  </svg>`;
+}
+
+/* Update auth UI: render login button or avatar + logout. */
 function updateAuthUI(user, adminFlag) {
   const authArea = document.getElementById("auth-area");
   if (!authArea) return;
   authArea.innerHTML = "";
+  // If no user: show Google login button (with logo)
   if (!user) {
     const btn = document.createElement("button");
     btn.id = "login-btn";
-    btn.className = "btn btn-primary";
-    btn.textContent = "Iniciar sesión con Google";
+    btn.className = "btn-google";
+    btn.type = "button";
+    btn.setAttribute('aria-label', 'Iniciar sesión con Google');
+    btn.innerHTML = `<span>Iniciar sesión</span>${googleSVG()}`;
     btn.addEventListener("click", doLogin);
     authArea.appendChild(btn);
+
+    // hide admin-only UI
     const r = document.getElementById("reset-all");
     if (r) r.style.display = "none";
     const af = document.getElementById("admin-filters");
@@ -633,15 +655,39 @@ function updateAuthUI(user, adminFlag) {
     if (toggle) toggle.style.display = "none";
     return;
   }
-  const info = document.createElement("span");
-  info.textContent = `${user.displayName || user.email}`;
-  info.style.marginRight = "10px";
-  authArea.appendChild(info);
+
+  // If logged in: show avatar (if any), name/email, and logout button with icon
+  const avatarWrapper = document.createElement("div");
+  avatarWrapper.className = "auth-avatar";
+  const img = document.createElement("img");
+  img.alt = `${user.displayName || user.email} avatar`;
+  img.loading = "lazy";
+  if (user.photoURL) img.src = user.photoURL;
+  else {
+    // fallback avatar (tiny data URI SVG)
+    const fallback = encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2" fill="#cbd5e1"/><path d="M4 20a8 8 0 0116 0" fill="#e6eefb"/></svg>');
+    img.src = `data:image/svg+xml;charset=utf-8,${fallback}`;
+  }
+  avatarWrapper.appendChild(img);
+
+  const nameSpan = document.createElement("span");
+  nameSpan.className = "auth-username";
+  nameSpan.textContent = `${user.displayName || user.email || ''}`;
+
   const btnLogout = document.createElement("button");
-  btnLogout.textContent = "Salir";
-  btnLogout.className = "btn btn-secondary";
+  btnLogout.id = "logout-btn";
+  btnLogout.className = "btn-logout";
+  btnLogout.type = "button";
+  btnLogout.setAttribute('aria-label', 'Salir de la sesión');
+  btnLogout.innerHTML = `${logoutSVG()}<span>Salir</span>`;
   btnLogout.addEventListener("click", doLogout);
+
+  // Append in a friendly order
+  authArea.appendChild(avatarWrapper);
+  authArea.appendChild(nameSpan);
   authArea.appendChild(btnLogout);
+
+  // admin-specific UI toggles
   const resetBtn = document.getElementById("reset-all");
   const toggle = document.getElementById("admin-filters-toggle");
   if (adminFlag) {
