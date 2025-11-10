@@ -1,9 +1,3 @@
-// script.js (reemplazo completo)
-// Incluye: calendario mensual, validación "mínimo 1 día", formateo de fecha,
-// bloqueo por citas puntuales, filtros/admin, modal compacto móvil,
-// y borrado seguro de todas las citas (batch writeBatch).
-// Sustituye completamente tu script.js actual con este archivo.
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-app.js";
 import {
   getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc,

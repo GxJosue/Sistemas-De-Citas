@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sistema de Citas - Barbería</title>
 
-  <!-- Enlaza el CSS separado -->
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" type="image/png" href="img/logo.webp">
 </head>
@@ -51,8 +50,8 @@
       <!-- Botón compacto para móviles: abre modal de filtros -->
       <button id="admin-filters-toggle" class="btn btn-secondary mobile-only" title="Abrir filtros">Filtros</button>
 
-      <!-- Botón de reset (AHORA FUERA del contenedor #admin-filters para evitar clonados) -->
-      <button id="reset-all" class="eliminar-btn appt-btn" style="display:none; margin-left:8px;">Borrar todas las citas (admin)</button>
+      <!-- Botón de reset-->
+      <button id="reset-all" class="eliminar-btn appt-btn" style="display:none; margin-left:8px;">Borrar todas las citas</button>
 
       <!-- Contenedor de filtros admin (se muestra solo vía JS si el usuario es admin) -->
       <div id="admin-filters" class="admin-filters" style="display:none;">
@@ -92,7 +91,7 @@
     <ul id="lista-citas" class="lista-citas" aria-live="polite"></ul>
   </div>
 
-  <!-- Modales existentes (no los quité para mantener compatibilidad) -->
+  <!-- Modales -->
   <div id="modal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="modal-title">
     <div class="modal-contenido" role="document">
       <h2 id="modal-title">Agendar Cita</h2>
@@ -170,7 +169,7 @@
   <div id="modal-admin-confirm" class="modal" role="dialog" aria-hidden="true">
     <div class="modal-contenido">
       <h3>Confirmación</h3>
-      <p>Para confirmar la acción administrativa escribe <strong>ELIMINAR</strong> en el campo y presiona "Confirmar".</p>
+      <p>Para confirmar escribe <strong>ELIMINAR</strong> en el campo y presiona "Confirmar".</p>
       <input id="admin-confirm-input" type="text" placeholder="Escribe ELIMINAR" aria-label="Confirmación de administrador">
       <div class="modal-botones">
         <button id="admin-confirm-approve" class="btn btn-danger">Confirmar</button>
@@ -179,7 +178,7 @@
     </div>
   </div>
 
-  <!-- Nuevo: Modal que pide iniciar sesión (reemplaza alert) -->
+  <!-- Modal que pide iniciar sesión -->
   <div id="modal-login-required" class="modal" role="dialog" aria-hidden="true">
     <div class="modal-contenido">
       <h3>Inicia sesión</h3>
@@ -194,7 +193,7 @@
   <!-- Toast container -->
   <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
 
-  <!-- Enlaza el JS separado (type="module" porque usamos imports de Firebase) -->
+  <!-- Enlaza el JS separado (type="module" por Firebase) -->
   <script type="module" src="script.js"></script>
 </body>
 </html>

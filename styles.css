@@ -1,5 +1,4 @@
-/* styles.css (mejorado: responsive para tarjetas de citas, horarios y calendario)
-   + estilos añadidos para mejorar visual y responsivo de filtros admin y compact modal */
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root{
@@ -103,7 +102,7 @@ body {
   border:1px solid #a5c8ff;
 }
 .calendar .cal-cell .date-num { font-weight:700; margin-bottom:6px; font-size:0.95rem; }
-.calendar .cal-cell .small-note { font-size:0.72rem; color:#6b7280; margin-top:auto; text-align:left; }
+.calendar .cal-cell .small-note { font-size:0.55rem; color:#6b7280; margin-top:auto; text-align:left; }
 
 /* Dias (oculto en la UI actual) */
 #dias-de-la-semana { margin-bottom: 12px; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
