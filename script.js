@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-app.js";
 import {
   getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc,
-  getDocs, getDoc, writeBatch
+  getDocs, getDoc, writeBatch, query, where
 } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
@@ -22,6 +22,57 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+
+// Lista global de barberos (nombres)
+let barberosList = [];
+
+async function cargarBarberos() {
+  const select = document.getElementById("barbero-select");
+  if (!select) return;
+  // placeholder mientras cargan / por si hay error
+  select.innerHTML = '<option value="">Cargando barberos...</option>';
+  try {
+    const snapshot = await getDocs(collection(db, "barberos"));
+    // build list of barberos
+    const barberos = [];
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data() || {};
+      // soporte para distintos nombres de campo y fallback al id
+      const nombre = (data.nombre && String(data.nombre).trim()) ||
+                     (data.name && String(data.name).trim()) ||
+                     docSnap.id;
+      // si activo no está definido asumimos true (muchos documentos pueden no tenerlo)
+      const activo = (typeof data.activo === 'undefined') ? true : Boolean(data.activo);
+      if (activo && nombre) {
+        barberos.push({ id: docSnap.id, nombre });
+      }
+    });
+    // orden alfabético para mejor UX
+    barberos.sort((a, b) => a.nombre.localeCompare(b.nombre, undefined, { sensitivity: 'base' }));
+
+    // actualizar la lista global de barberos (solo nombres)
+    barberosList = barberos.map(b => b.nombre);
+
+    // render opciones
+    if (barberos.length === 0) {
+      select.innerHTML = '<option value="">No hay barberos disponibles</option>';
+    } else {
+      select.innerHTML = '<option value="">Selecciona un barbero</option>';
+      barberos.forEach(b => {
+        const opt = document.createElement("option");
+        opt.value = b.nombre;
+        opt.textContent = b.nombre;
+        opt.dataset.docId = b.id;
+        select.appendChild(opt);
+      });
+    }
+  } catch (err) {
+    console.error("Error cargando barberos desde Firestore:", err);
+    select.innerHTML = '<option value="">Error cargando barberos</option>';
+    // mostrar toast si la función está disponible
+    try { showToast("No se pudieron cargar los barberos (revisa la consola)", "error", 5000); } catch(e) {}
+  }
+}
 
 /* ---------- Estado global ---------- */
 const horarios = {
@@ -236,37 +287,78 @@ function renderHorarios(dia, citasGuardadas) {
   if (!contenedor) return;
   contenedor.innerHTML = "";
   if (!dia) return;
+  if (!Array.isArray(citasGuardadas)) citasGuardadas = [];
+  // cantidad total de barberos conocidos
+  const totalBarberos = Array.isArray(barberosList) ? barberosList.length : 0;
+
   horarios[dia].forEach(hora => {
     const btn = document.createElement("button");
     btn.textContent = hora;
     btn.classList.add("hora-disponible");
-    let citaExistente = null;
-    if (selectedDateISO) {
-      citaExistente = citasGuardadas.find(c => {
-        if (c && (c.fecha === selectedDateISO || c.fechaISO === selectedDateISO)) return c.hora === hora;
-        return false;
-      });
-      if (!citaExistente) {
-        citaExistente = citasGuardadas.find(c => {
-          const hasFecha = c && (typeof c.fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(c.fecha) || (c.fechaISO && typeof c.fechaISO === 'string'));
-          if (hasFecha) return false;
-          return c && c.dia === dia && c.hora === hora;
+    btn.disabled = false;
+
+    // Obtener todas las citas que coincidan con la fecha seleccionada o el día
+    let citasMatching = [];
+    try {
+      if (selectedDateISO) {
+        citasMatching = citasGuardadas.filter(c => {
+          if (!c) return false;
+          const fechaMatches = (c.fecha === selectedDateISO) || (c.fechaISO === selectedDateISO);
+          return fechaMatches && c.hora === hora;
+        });
+      } else {
+        citasMatching = citasGuardadas.filter(c => c && c.dia === dia && c.hora === hora);
+      }
+    } catch (e) {
+      console.error("Error filtrando citas para horarios:", e);
+      citasMatching = [];
+    }
+
+    const barberoSelect = document.getElementById("barbero-select");
+    const barberoSeleccionado = barberoSelect ? barberoSelect.value.trim() : "";
+
+    if (barberoSeleccionado) {
+      // Si hay un barbero seleccionado: la hora está ocupada solo si ese barbero ya tiene cita a esa hora
+      const citasDelBarbero = citasMatching.filter(c => c && String(c.barbero || '').trim() === barberoSeleccionado);
+      if (citasDelBarbero.length > 0) {
+        btn.classList.remove("hora-disponible");
+        btn.classList.add("hora-ocupada");
+        btn.disabled = true;
+      } else {
+        btn.disabled = false;
+        btn.addEventListener("click", () => {
+          if (selectedDateISO) agendarCita(selectedDateISO, hora);
+          else agendarCita(dia, hora);
         });
       }
     } else {
-      citaExistente = citasGuardadas.find(c => c.dia === dia && c.hora === hora);
+      // Ningún barbero seleccionado: solo bloquear la hora si TODOS los barberos están reservados en esa hora
+      if (totalBarberos === 0) {
+        // si no hay barberos definidos, marcamos como no disponible para evitar reservas inválidas
+        btn.classList.remove("hora-disponible");
+        btn.classList.add("hora-ocupada");
+        btn.disabled = true;
+      } else {
+        const bookedBarberos = new Set();
+        citasMatching.forEach(c => {
+          if (c && c.barbero) bookedBarberos.add(String(c.barbero).trim());
+        });
+        if (bookedBarberos.size >= totalBarberos) {
+          // todas las plazas (barberos) ocupadas en este horario
+          btn.classList.remove("hora-disponible");
+          btn.classList.add("hora-ocupada");
+          btn.disabled = true;
+        } else {
+          // todavía hay al menos un barbero disponible en esa hora
+          btn.disabled = false;
+          btn.addEventListener("click", () => {
+            if (selectedDateISO) agendarCita(selectedDateISO, hora);
+            else agendarCita(dia, hora);
+          });
+        }
+      }
     }
-    if (citaExistente) {
-      btn.classList.remove("hora-disponible");
-      btn.classList.add("hora-ocupada");
-      btn.disabled = true;
-    } else {
-      btn.disabled = false;
-      btn.addEventListener("click", () => {
-        if (selectedDateISO) agendarCita(selectedDateISO, hora);
-        else agendarCita(dia, hora);
-      });
-    }
+
     contenedor.appendChild(btn);
   });
 }
@@ -279,6 +371,27 @@ function cargarHorariosPara(dia) {
   if (!currentUser) { openModal('modal-login-required'); return; }
   diaSeleccionado = dia;
   startHorariosListener(dia);
+}
+
+/* ---------- Comprobación de disponibilidad (nuevo) ---------- */
+async function isSlotTaken(barbero, fechaISO, dia, hora) {
+  try {
+    if (!barbero || !hora) return false;
+    if (fechaISO && /^\d{4}-\d{2}-\d{2}$/.test(fechaISO)) {
+      const q = query(collection(db, "citas"), where("fecha", "==", fechaISO), where("hora", "==", hora), where("barbero", "==", barbero));
+      const snap = await getDocs(q);
+      return !snap.empty;
+    } else {
+      const q = query(collection(db, "citas"), where("dia", "==", dia), where("hora", "==", hora), where("barbero", "==", barbero));
+      const snap = await getDocs(q);
+      return !snap.empty;
+    }
+  } catch (err) {
+    console.error("Error comprobando disponibilidad:", err);
+    showToast("No se pudo verificar la disponibilidad. Intenta de nuevo.", "error", 4000);
+    // bloquear por seguridad: si no podemos verificar, no permitimos reservar
+    return true;
+  }
 }
 
 /* ---------- Agendar / Confirmar cita ---------- */
@@ -303,15 +416,32 @@ async function confirmarCita() {
   if (!nombreInput || !telefonoInput) return;
   const nombre = nombreInput.value.trim();
   const telefono = telefonoInput.value.trim();
+  const barberoSelect = document.getElementById("barbero-select");
+  const barbero = barberoSelect ? barberoSelect.value.trim() : "";
+  if (!barbero) { showToast("Debe seleccionar un barbero.", "error"); return; }
   if (!nombre || !telefono) { showToast("Debe ingresar un nombre y un número válido.", "error"); return; }
   if (diaCitaSeleccionado && /^\d{4}-\d{2}-\d{2}$/.test(diaCitaSeleccionado)) {
     const minDate = getStartOfDayISO(addDays(new Date(), 1));
     if (diaCitaSeleccionado < minDate) { showToast("La reserva debe hacerse con al menos 1 día de anticipación.", "error"); return; }
   }
-  const cita = { dia: diaSeleccionado, hora: horaSeleccionada, nombre, telefono, userId: currentUser.uid, createdAt: new Date().toISOString() };
+
+  // Verificar disponibilidad ANTES de crear la cita
+  const fechaIso = (diaCitaSeleccionado && /^\d{4}-\d{2}-\d{2}$/.test(diaCitaSeleccionado)) ? diaCitaSeleccionado : null;
+  const diaName = diaSeleccionado;
+  const ocupado = await isSlotTaken(barbero, fechaIso, diaName, horaSeleccionada);
+  if (ocupado) {
+    showToast("Horario ocupado para el barbero seleccionado. Elige otro horario o barbero.", "error");
+    return;
+  }
+
+  const cita = { dia: diaSeleccionado, hora: horaSeleccionada, nombre, telefono, barbero, userId: currentUser.uid, createdAt: new Date().toISOString() };
   if (diaCitaSeleccionado && /^\d{4}-\d{2}-\d{2}$/.test(diaCitaSeleccionado)) cita.fecha = diaCitaSeleccionado;
   try {
     await addDoc(collection(db, "citas"), cita);
+    // resetear selección del barbero para que no quede "guardada"
+    if (barberoSelect) {
+      barberoSelect.value = "";
+    }
     closeModal('modal');
     showToast("Cita agendada correctamente", "success");
     openModal("modal-confirmacion");
@@ -433,6 +563,12 @@ function renderLista(snapshot) {
     info.appendChild(nombreEl);
     info.appendChild(metaEl);
     if (telefonoEl.textContent) info.appendChild(telefonoEl);
+    if (cita.barbero) {
+  const barberoEl = document.createElement("div");
+  barberoEl.className = "appt-barbero";
+  barberoEl.textContent = `Barbero: ${cita.barbero}`;
+  info.appendChild(barberoEl);
+}
     const accionesWrapper = document.createElement("div");
     accionesWrapper.className = "appt-actions";
     if (cita.userId === (currentUser && currentUser.uid)) {
@@ -705,6 +841,7 @@ function updateAuthUI(user, adminFlag) {
 
 /* ---------- Inicialización y bindings ---------- */
 document.addEventListener("DOMContentLoaded", () => {
+  cargarBarberos();
   const today = new Date();
   renderCalendar(today.getFullYear(), today.getMonth());
   const prev = document.getElementById('cal-prev');
@@ -852,7 +989,7 @@ onAuthStateChanged(auth, async (user) => {
 
 
 // Sincronización con Make (Webhook)
-const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/ad90opvmdluf71f4npzpwfnzbjs0ayw7";
+const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/hnypnb8aww1hfqtx9c4et2uqsku1lhpn";
 
 const citasRef = collection(db, "citas");
 
@@ -899,18 +1036,18 @@ onSnapshot(citasRef, (snapshot) => {
       }
     }
 
-    // Enviar a Make
     fetch(MAKE_WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action,
-        id,
-        cita,
-        startISO,
-        endISO
-      }),
-    }).catch(err => console.error("Error enviando a Make:", err));
-  });
-});
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    action,
+    id,
+    cita,
+    startISO,
+    endISO
+  }),
+}).catch(err => console.error("Error enviando a Make:", err));
 
+  });
+
+});

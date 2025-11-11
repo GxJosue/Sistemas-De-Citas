@@ -371,11 +371,61 @@ body {
 .btn-danger { background: linear-gradient(180deg,var(--danger), #b02a37); color:white; }
 
 /* Toasts */
-#toast-container { position: fixed; right: 20px; bottom: 20px; z-index: 9999; display:flex; flex-direction:column; gap:10px; }
-.toast { background: #222; color: #fff; padding: 12px 14px; border-radius: 8px; min-width: 220px; box-shadow: 0 8px 30px rgba(0,0,0,0.18); opacity: 0; transform: translateY(8px); transition: transform .18s, opacity .18s; }
-.toast.show { opacity: 1; transform: translateY(0); }
+/* Centrado horizontalmente en la parte inferior, ancho responsive y texto centrado */
+#toast-container {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  max-width: calc(100% - 40px);
+  pointer-events: none; /* permite clicks pasar por debajo excepto en el toast */
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+
+.toast {
+  pointer-events: auto; /* permitir interacción dentro del toast si hay botones */
+  width: 100%;
+  max-width: 520px;
+  background: #222;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: transform .18s, opacity .18s;
+  text-align: center; /* texto centrado */
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .toast.success { background: linear-gradient(90deg,#2dd4bf,#12b886); }
-.toast.error { background: linear-gradient(90deg,#ff6b6b,#e12d39); }
+.toast.error   { background: linear-gradient(90deg,#ff6b6b,#e12d39); }
+
+/* Ajustes para móviles */
+@media (max-width: 420px) {
+  #toast-container { bottom: 12px; max-width: calc(100% - 20px); }
+  .toast { padding: 10px 12px; max-width: 420px; font-size: 0.95rem; }
+}
 
 /* Ajustes finos */
 .appt-phone-small { display:block; margin-top:6px; color:var(--muted); font-size:0.95rem; }
+
+.appt-barbero {
+  font-size: 0.9rem;
+  color: #333;
+  font-weight: 500;
+  margin-top: 4px;
+}
