@@ -1049,50 +1049,77 @@ function parseTo24Hour(hora) {
   return `${String(h).padStart(2, "0")}:${m}`;
 }
 
-// Evita bucles infinitos
-let lastSyncTime = 0;
-
 onSnapshot(citasRef, (snapshot) => {
-  const now = Date.now();
-  if (now - lastSyncTime < 1000) return;
-  lastSyncTime = now;
-
+  // Itera por los cambios y envía un webhook por cada cambio "confirmado por servidor"
   snapshot.docChanges().forEach((change) => {
-    const cita = change.doc.data();
-    const id = change.doc.id;
-
-    let action = "";
-    if (change.type === "added") action = "create";
-    if (change.type === "modified") action = "update";
-    if (change.type === "removed") action = "delete";
-
-    // Si la cita tiene fecha y hora, generamos los tiempos ISO
-    let startISO = null;
-    let endISO = null;
-
-    if (cita.fecha && cita.hora) {
-      const hora24 = parseTo24Hour(cita.hora);
-      if (hora24) {
-        const [hh, mm] = hora24.split(":").map(Number);
-        const start = new Date(`${cita.fecha}T${hora24}:00`);
-        const end = new Date(start.getTime() + 40 * 60 * 1000); // +40 min
-        startISO = start.toISOString();
-        endISO = end.toISOString();
+    try {
+      // Si la change.doc tiene metadata y la escritura está pendiente localmente,
+      // la ignoramos: esperamos la confirmación remota.
+      if (change.doc && change.doc.metadata && change.doc.metadata.hasPendingWrites) {
+        console.debug("Skipping local pending change for doc:", change.doc.id);
+        return;
       }
+
+      const cita = change.doc.data();
+      const id = change.doc.id;
+
+      let action = "";
+      if (change.type === "added") action = "create";
+      if (change.type === "modified") action = "update";
+      if (change.type === "removed") action = "delete";
+
+      // Si la cita tiene fecha y hora, generamos los tiempos ISO
+      let startISO = null;
+      let endISO = null;
+
+      if (cita && cita.fecha && cita.hora) {
+        const hora24 = parseTo24Hour(cita.hora);
+        if (hora24) {
+          const start = new Date(`${cita.fecha}T${hora24}:00`);
+          const end = new Date(start.getTime() + 40 * 60 * 1000); // +40 min
+          startISO = start.toISOString();
+          endISO = end.toISOString();
+        }
+      }
+
+      const payload = {
+        action,
+        id,
+        cita,
+        startISO,
+        endISO,
+        meta: {
+          ua: (typeof navigator !== 'undefined' && navigator.userAgent) ? navigator.userAgent : 'unknown',
+          sentAt: new Date().toISOString()
+        }
+      };
+
+      console.debug("Sending webhook to Make:", payload);
+
+      // Hacemos fetch con opciones explícitas
+      fetch(MAKE_WEBHOOK_URL, {
+        method: "POST",
+        mode: "cors",
+        cache: "no-store",
+        credentials: "omit",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        keepalive: true
+      })
+      .then(async (res) => {
+        if (!res.ok) {
+          const text = await res.text().catch(() => "<no body>");
+          console.error("Make webhook returned status", res.status, "body:", text);
+        } else {
+          console.debug("Make webhook OK", res.status);
+        }
+      })
+      .catch(err => {
+        console.error("Error enviando a Make:", err);
+      });
+
+    } catch (err) {
+      console.error("Error procesando docChange para webhook:", err);
     }
-
-    fetch(MAKE_WEBHOOK_URL, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    action,
-    id,
-    cita,
-    startISO,
-    endISO
-  }),
-}).catch(err => console.error("Error enviando a Make:", err));
-
   });
-
 });
