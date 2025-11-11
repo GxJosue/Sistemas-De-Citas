@@ -1033,93 +1033,168 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 
-// Sincronización con Make (Webhook)
-const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/hnypnb8aww1hfqtx9c4et2uqsku1lhpn";
+// ---- Reemplazo robusto del listener de sincronización con Make (usa includeMetadataChanges y retries) ----
 
+const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/hnypnb8aww1hfqtx9c4et2uqsku1lhpn";
 const citasRef = collection(db, "citas");
 
-// Función auxiliar para convertir hora AM/PM a formato 24h
-function parseTo24Hour(hora) {
-  const match = hora.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!match) return null;
-  let [_, h, m, period] = match;
-  h = parseInt(h);
-  if (period.toUpperCase() === "PM" && h !== 12) h += 12;
-  if (period.toUpperCase() === "AM" && h === 12) h = 0;
-  return `${String(h).padStart(2, "0")}:${m}`;
+const pendingDocWatchers = new Map(); // id -> {unsub, timeoutId}
+
+/**
+ * Envia payload a Make con logging y reintentos simples.
+ * Retorna la promesa de fetch (resuelta aunque haya error de red).
+ */
+function sendToMake(payload) {
+  console.debug("Webhook payload:", payload);
+  return fetch(MAKE_WEBHOOK_URL, {
+    method: "POST",
+    mode: "cors",
+    cache: "no-store",
+    credentials: "omit",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    keepalive: true
+  })
+  .then(async (res) => {
+    if (!res.ok) {
+      const text = await res.text().catch(() => "<no body>");
+      console.error("Make webhook returned status", res.status, "body:", text);
+    } else {
+      console.debug("Make webhook OK", res.status);
+    }
+    return res;
+  })
+  .catch(err => {
+    console.error("Error enviando a Make:", err);
+    return null;
+  });
 }
 
-onSnapshot(citasRef, (snapshot) => {
-  // Itera por los cambios y envía un webhook por cada cambio "confirmado por servidor"
+/**
+ * Construye y envía el webhook (se puede llamar desde el snapshot principal o desde el watcher)
+ */
+function processAndSendWebhook(action, id, citaData, extraMeta = {}) {
+  let startISO = null, endISO = null;
+  try {
+    if (citaData && citaData.fecha && citaData.hora) {
+      const hora24 = parseTo24Hour(citaData.hora);
+      if (hora24) {
+        const start = new Date(`${citaData.fecha}T${hora24}:00`);
+        const end = new Date(start.getTime() + 40 * 60 * 1000);
+        startISO = start.toISOString();
+        endISO = end.toISOString();
+      }
+    }
+  } catch (e) {
+    console.error("Error calculando start/end ISO:", e);
+  }
+
+  const payload = {
+    action,
+    id,
+    cita: citaData || null,
+    startISO,
+    endISO,
+    meta: Object.assign({
+      ua: (typeof navigator !== 'undefined' && navigator.userAgent) ? navigator.userAgent : 'unknown',
+      sentAt: new Date().toISOString()
+    }, extraMeta)
+  };
+
+  return sendToMake(payload);
+}
+
+/**
+ * Crea un watcher puntual para un documento que está en hasPendingWrites === true.
+ * Espera hasta que metadata.hasPendingWrites === false o hasta timeoutMs, luego envía webhook.
+ */
+function watchDocUntilSynced(docRef, initialAction, initialId, initialCita, timeoutMs = 15000) {
+  const id = initialId;
+  if (pendingDocWatchers.has(id)) {
+    // ya hay un watcher para este documento
+    return;
+  }
+
+  // Listener con includeMetadataChanges para ese doc
+  const unsub = onSnapshot(docRef, { includeMetadataChanges: true }, (docSnap) => {
+    try {
+      const meta = docSnap.metadata || {};
+      // Si no hay más pending writes -> enviamos y limpiamos
+      if (meta.hasPendingWrites === false) {
+        const data = docSnap.exists() ? docSnap.data() : initialCita; // si se borró, fallback al inicial
+        processAndSendWebhook(initialAction, id, data, { reason: 'synced-event' })
+          .catch(err => console.error('Error enviando webhook desde watcher:', err));
+        // limpiar
+        const stored = pendingDocWatchers.get(id);
+        if (stored) {
+          clearTimeout(stored.timeoutId);
+          try { stored.unsub(); } catch(e) {}
+          pendingDocWatchers.delete(id);
+        }
+      }
+    } catch (err) {
+      console.error("Watcher error:", err);
+    }
+  }, (error) => {
+    console.error("Error en watcher de doc:", error);
+  });
+
+  // Fallback timeout: si no se resuelve la metadata en X ms, enviamos de todas formas y limpiamos
+  const timeoutId = setTimeout(() => {
+    try {
+      // Intentamos leer el doc una vez para tener datos más recientes
+      getDoc(docRef).then(docSnap => {
+        const data = docSnap.exists() ? docSnap.data() : initialCita;
+        processAndSendWebhook(initialAction, id, data, { reason: 'timeout-fallback' })
+          .catch(err => console.error('Error enviando webhook desde timeout fallback:', err));
+      }).catch(err => {
+        // Si no pudimos obtener, intentamos con los datos iniciales
+        processAndSendWebhook(initialAction, id, initialCita, { reason: 'timeout-fallback-getdoc-failed' })
+          .catch(e => console.error(e));
+      });
+    } finally {
+      const stored = pendingDocWatchers.get(id);
+      if (stored) {
+        try { stored.unsub(); } catch(e) {}
+        pendingDocWatchers.delete(id);
+      }
+    }
+  }, timeoutMs);
+
+  pendingDocWatchers.set(id, { unsub, timeoutId });
+}
+
+// Listener principal (collection) con includeMetadataChanges para captar cambios y metadata
+onSnapshot(citasRef, { includeMetadataChanges: true }, (snapshot) => {
   snapshot.docChanges().forEach((change) => {
     try {
-      // Si la change.doc tiene metadata y la escritura está pendiente localmente,
-      // la ignoramos: esperamos la confirmación remota.
-      if (change.doc && change.doc.metadata && change.doc.metadata.hasPendingWrites) {
-        console.debug("Skipping local pending change for doc:", change.doc.id);
-        return;
-      }
-
-      const cita = change.doc.data();
       const id = change.doc.id;
-
+      const cita = change.doc.data();
+      const meta = change.doc.metadata || {};
       let action = "";
       if (change.type === "added") action = "create";
       if (change.type === "modified") action = "update";
       if (change.type === "removed") action = "delete";
 
-      // Si la cita tiene fecha y hora, generamos los tiempos ISO
-      let startISO = null;
-      let endISO = null;
-
-      if (cita && cita.fecha && cita.hora) {
-        const hora24 = parseTo24Hour(cita.hora);
-        if (hora24) {
-          const start = new Date(`${cita.fecha}T${hora24}:00`);
-          const end = new Date(start.getTime() + 40 * 60 * 1000); // +40 min
-          startISO = start.toISOString();
-          endISO = end.toISOString();
-        }
+      // Si la metadata indica que la escritura está pendiente localmente, no enviamos inmediatamente.
+      // En su lugar creamos un watcher puntual que esperará a que se sincronice con el servidor.
+      if (meta.hasPendingWrites) {
+        console.debug(`Doc ${id} tiene hasPendingWrites=true (action=${action}). Creando watcher...`);
+        // Para eliminaciones, a veces hasPendingWrites es false; si es true, manejamos igual:
+        // Watcher usará initialCita como fallback si el doc desaparece.
+        const docRef = change.doc.ref;
+        watchDocUntilSynced(docRef, action, id, cita, 15000);
+        return;
       }
 
-      const payload = {
-        action,
-        id,
-        cita,
-        startISO,
-        endISO,
-        meta: {
-          ua: (typeof navigator !== 'undefined' && navigator.userAgent) ? navigator.userAgent : 'unknown',
-          sentAt: new Date().toISOString()
-        }
-      };
-
-      console.debug("Sending webhook to Make:", payload);
-
-      // Hacemos fetch con opciones explícitas
-      fetch(MAKE_WEBHOOK_URL, {
-        method: "POST",
-        mode: "cors",
-        cache: "no-store",
-        credentials: "omit",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        keepalive: true
-      })
-      .then(async (res) => {
-        if (!res.ok) {
-          const text = await res.text().catch(() => "<no body>");
-          console.error("Make webhook returned status", res.status, "body:", text);
-        } else {
-          console.debug("Make webhook OK", res.status);
-        }
-      })
-      .catch(err => {
-        console.error("Error enviando a Make:", err);
-      });
+      // Si no hay pending writes -> enviamos inmediatamente
+      console.debug(`Doc ${id} confirmado por servidor, enviando webhook (action=${action})`);
+      processAndSendWebhook(action, id, cita, { reason: 'direct' });
 
     } catch (err) {
-      console.error("Error procesando docChange para webhook:", err);
+      console.error("Error procesando change en snapshot:", err);
     }
   });
+}, (error) => {
+  console.error("Error en snapshot de citas:", error);
 });
