@@ -1033,16 +1033,109 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 
-// ---- Reemplazo robusto del listener de sincronización con Make (usa includeMetadataChanges y retries) ----
+// ---- Reemplazo robusto del listener de sincronización con Make (cálculo seguro de startISO/endISO) ----
 
 const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/hnypnb8aww1hfqtx9c4et2uqsku1lhpn";
 const citasRef = collection(db, "citas");
 
-const pendingDocWatchers = new Map(); // id -> {unsub, timeoutId}
+/**
+ * Intenta construir startISO y endISO de forma robusta.
+ * Devuelve { startISO: string|null, endISO: string|null, debug: {...} }
+ */
+function buildStartEndISO(cita) {
+  const debug = { origenFecha: null, parsedDate: null, horaInput: cita ? cita.hora : null, horaParsed: null, reason: null };
+
+  if (!cita) {
+    debug.reason = 'no-cita';
+    return { startISO: null, endISO: null, debug };
+  }
+
+  let fechaRaw = cita.fecha || cita.fechaISO || cita.fechaString || null;
+  debug.origenFecha = typeof fechaRaw;
+
+  // Si es un Timestamp de Firestore (tiene toDate), convertirlo
+  if (fechaRaw && typeof fechaRaw.toDate === 'function') {
+    try {
+      const d = fechaRaw.toDate();
+      debug.parsedDate = d.toISOString();
+      // si el Timestamp incluye hora, la usamos; si no (midnight) la completamos con la hora
+      const year = d.getFullYear(), month = d.getMonth() + 1, day = d.getDate();
+      fechaRaw = `${String(year).padStart(4,'0')}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    } catch (e) {
+      debug.reason = 'timestamp-toDate-failed';
+      return { startISO: null, endISO: null, debug };
+    }
+  }
+
+  // Si fechaRaw es string, lidiamos con varios formatos
+  if (typeof fechaRaw === 'string') {
+    fechaRaw = fechaRaw.trim();
+    // Caso más común: "YYYY-MM-DD"
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fechaRaw)) {
+      // ok, seguimos abajo
+    } else {
+      // Intentar parsear como ISO completo (p.e. "2025-11-11T00:00:00.000Z")
+      const tryDate = new Date(fechaRaw);
+      if (!isNaN(tryDate)) {
+        const y = tryDate.getFullYear(), m = tryDate.getMonth() + 1, d = tryDate.getDate();
+        fechaRaw = `${String(y).padStart(4,'0')}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        debug.parsedDate = tryDate.toISOString();
+      } else {
+        debug.reason = 'fecha-string-no-parseable';
+        return { startISO: null, endISO: null, debug };
+      }
+    }
+  } else {
+    debug.reason = 'fecha-no-string-ni-timestamp';
+    return { startISO: null, endISO: null, debug };
+  }
+
+  // Ahora fechaRaw está en formato YYYY-MM-DD (si llegamos hasta aquí)
+  const match = fechaRaw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) { debug.reason = 'fecha-no-matched-after-normalize'; return { startISO: null, endISO: null, debug }; }
+  const year = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  const day = parseInt(match[3], 10);
+
+  // Parsear la hora con varios intentos
+  let hora24 = null;
+  // 1) try parseTo24Hour (tu helper)
+  try { hora24 = parseTo24Hour(cita.hora); } catch(e) { hora24 = null; }
+  // 2) fallback a parseTimeTo24 (otro helper que ya tienes)
+  if (!hora24) {
+    try { hora24 = parseTimeTo24(cita.hora); } catch(e) { hora24 = null; }
+  }
+  // 3) si ya es 24h como "13:00" o "7:00" (sin AM/PM)
+  if (!hora24 && typeof cita.hora === 'string') {
+    const hmatch = cita.hora.trim().match(/^(\d{1,2}):(\d{2})$/);
+    if (hmatch) {
+      const hh = String(parseInt(hmatch[1],10)).padStart(2,'0');
+      const mm = String(parseInt(hmatch[2],10)).padStart(2,'0');
+      hora24 = `${hh}:${mm}`;
+    }
+  }
+
+  if (!hora24) {
+    debug.reason = 'hora-no-parseable';
+    return { startISO: null, endISO: null, debug };
+  }
+
+  debug.horaParsed = hora24;
+
+  // Construir fecha local usando new Date(year, month-1, day, hh, mm) para evitar parseos ambiguos
+  const [hhNum, mmNum] = hora24.split(':').map(n => parseInt(n, 10));
+  const startDate = new Date(year, month - 1, day, hhNum, mmNum, 0, 0);
+  if (isNaN(startDate.getTime())) {
+    debug.reason = 'startDate-NaN';
+    return { startISO: null, endISO: null, debug };
+  }
+  const endDate = new Date(startDate.getTime() + (40 * 60 * 1000)); // +40 min
+
+  return { startISO: startDate.toISOString(), endISO: endDate.toISOString(), debug };
+}
 
 /**
- * Envia payload a Make con logging y reintentos simples.
- * Retorna la promesa de fetch (resuelta aunque haya error de red).
+ * Enviar payload a Make (igual que antes, pero añadimos debug de start/end)
  */
 function sendToMake(payload) {
   console.debug("Webhook payload:", payload);
@@ -1071,60 +1164,45 @@ function sendToMake(payload) {
 }
 
 /**
- * Construye y envía el webhook (se puede llamar desde el snapshot principal o desde el watcher)
+ * Procesa un change y manda webhook con start/end (intenta construirlos)
  */
 function processAndSendWebhook(action, id, citaData, extraMeta = {}) {
-  let startISO = null, endISO = null;
-  try {
-    if (citaData && citaData.fecha && citaData.hora) {
-      const hora24 = parseTo24Hour(citaData.hora);
-      if (hora24) {
-        const start = new Date(`${citaData.fecha}T${hora24}:00`);
-        const end = new Date(start.getTime() + 40 * 60 * 1000);
-        startISO = start.toISOString();
-        endISO = end.toISOString();
-      }
-    }
-  } catch (e) {
-    console.error("Error calculando start/end ISO:", e);
-  }
+  const result = buildStartEndISO(citaData);
+  const startISO = result.startISO;
+  const endISO = result.endISO;
 
   const payload = {
     action,
     id,
     cita: citaData || null,
-    startISO,
-    endISO,
+    startISO: startISO || null,
+    endISO: endISO || null,
     meta: Object.assign({
       ua: (typeof navigator !== 'undefined' && navigator.userAgent) ? navigator.userAgent : 'unknown',
-      sentAt: new Date().toISOString()
+      sentAt: new Date().toISOString(),
+      startBuildDebug: result.debug || null
     }, extraMeta)
   };
 
+  // Si startISO/endISO son null y Make los necesita, puedes:
+  // - enviar igual y que Make trate la ausencia, o
+  // - evitar enviar y loggear (aquí enviamos siempre, pero con debug para que veas por qué falló)
   return sendToMake(payload);
 }
 
-/**
- * Crea un watcher puntual para un documento que está en hasPendingWrites === true.
- * Espera hasta que metadata.hasPendingWrites === false o hasta timeoutMs, luego envía webhook.
- */
+// Mantén la lógica de watchers si usabas hasPendingWrites
+const pendingDocWatchers = new Map();
+
 function watchDocUntilSynced(docRef, initialAction, initialId, initialCita, timeoutMs = 15000) {
   const id = initialId;
-  if (pendingDocWatchers.has(id)) {
-    // ya hay un watcher para este documento
-    return;
-  }
+  if (pendingDocWatchers.has(id)) return;
 
-  // Listener con includeMetadataChanges para ese doc
   const unsub = onSnapshot(docRef, { includeMetadataChanges: true }, (docSnap) => {
     try {
       const meta = docSnap.metadata || {};
-      // Si no hay más pending writes -> enviamos y limpiamos
       if (meta.hasPendingWrites === false) {
-        const data = docSnap.exists() ? docSnap.data() : initialCita; // si se borró, fallback al inicial
-        processAndSendWebhook(initialAction, id, data, { reason: 'synced-event' })
-          .catch(err => console.error('Error enviando webhook desde watcher:', err));
-        // limpiar
+        const data = docSnap.exists() ? docSnap.data() : initialCita;
+        processAndSendWebhook(initialAction, id, data, { reason: 'synced-event' });
         const stored = pendingDocWatchers.get(id);
         if (stored) {
           clearTimeout(stored.timeoutId);
@@ -1139,18 +1217,13 @@ function watchDocUntilSynced(docRef, initialAction, initialId, initialCita, time
     console.error("Error en watcher de doc:", error);
   });
 
-  // Fallback timeout: si no se resuelve la metadata en X ms, enviamos de todas formas y limpiamos
   const timeoutId = setTimeout(() => {
     try {
-      // Intentamos leer el doc una vez para tener datos más recientes
       getDoc(docRef).then(docSnap => {
         const data = docSnap.exists() ? docSnap.data() : initialCita;
-        processAndSendWebhook(initialAction, id, data, { reason: 'timeout-fallback' })
-          .catch(err => console.error('Error enviando webhook desde timeout fallback:', err));
+        processAndSendWebhook(initialAction, id, data, { reason: 'timeout-fallback' });
       }).catch(err => {
-        // Si no pudimos obtener, intentamos con los datos iniciales
-        processAndSendWebhook(initialAction, id, initialCita, { reason: 'timeout-fallback-getdoc-failed' })
-          .catch(e => console.error(e));
+        processAndSendWebhook(initialAction, id, initialCita, { reason: 'timeout-fallback-getdoc-failed' });
       });
     } finally {
       const stored = pendingDocWatchers.get(id);
@@ -1164,7 +1237,7 @@ function watchDocUntilSynced(docRef, initialAction, initialId, initialCita, time
   pendingDocWatchers.set(id, { unsub, timeoutId });
 }
 
-// Listener principal (collection) con includeMetadataChanges para captar cambios y metadata
+// Listener principal (collection) con includeMetadataChanges
 onSnapshot(citasRef, { includeMetadataChanges: true }, (snapshot) => {
   snapshot.docChanges().forEach((change) => {
     try {
@@ -1176,18 +1249,13 @@ onSnapshot(citasRef, { includeMetadataChanges: true }, (snapshot) => {
       if (change.type === "modified") action = "update";
       if (change.type === "removed") action = "delete";
 
-      // Si la metadata indica que la escritura está pendiente localmente, no enviamos inmediatamente.
-      // En su lugar creamos un watcher puntual que esperará a que se sincronice con el servidor.
       if (meta.hasPendingWrites) {
         console.debug(`Doc ${id} tiene hasPendingWrites=true (action=${action}). Creando watcher...`);
-        // Para eliminaciones, a veces hasPendingWrites es false; si es true, manejamos igual:
-        // Watcher usará initialCita como fallback si el doc desaparece.
         const docRef = change.doc.ref;
         watchDocUntilSynced(docRef, action, id, cita, 15000);
         return;
       }
 
-      // Si no hay pending writes -> enviamos inmediatamente
       console.debug(`Doc ${id} confirmado por servidor, enviando webhook (action=${action})`);
       processAndSendWebhook(action, id, cita, { reason: 'direct' });
 
