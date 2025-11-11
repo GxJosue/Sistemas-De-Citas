@@ -1042,96 +1042,125 @@ const citasRef = collection(db, "citas");
  * Intenta construir startISO y endISO de forma robusta.
  * Devuelve { startISO: string|null, endISO: string|null, debug: {...} }
  */
+// Reemplaza buildStartEndISO por esta versión robusta (auto-contenida)
 function buildStartEndISO(cita) {
-  const debug = { origenFecha: null, parsedDate: null, horaInput: cita ? cita.hora : null, horaParsed: null, reason: null };
+  const debug = {
+    origenFecha: null,
+    fechaRawBefore: null,
+    fechaNormalized: null,
+    horaInput: cita ? cita.hora : null,
+    horaParsed: null,
+    reason: null
+  };
 
   if (!cita) {
     debug.reason = 'no-cita';
     return { startISO: null, endISO: null, debug };
   }
 
-  let fechaRaw = cita.fecha || cita.fechaISO || cita.fechaString || null;
-  debug.origenFecha = typeof fechaRaw;
+  // Obtener la "fecha" desde varios campos posibles
+  let fechaRaw = (cita.fecha !== undefined && cita.fecha !== null) ? cita.fecha
+               : (cita.fechaISO !== undefined && cita.fechaISO !== null) ? cita.fechaISO
+               : (cita.fechaString !== undefined && cita.fechaString !== null) ? cita.fechaString
+               : null;
 
-  // Si es un Timestamp de Firestore (tiene toDate), convertirlo
+  debug.fechaRawBefore = fechaRaw;
+
+  // Si es Timestamp de Firestore, convertir a YYYY-MM-DD
   if (fechaRaw && typeof fechaRaw.toDate === 'function') {
     try {
-      const d = fechaRaw.toDate();
-      debug.parsedDate = d.toISOString();
-      // si el Timestamp incluye hora, la usamos; si no (midnight) la completamos con la hora
-      const year = d.getFullYear(), month = d.getMonth() + 1, day = d.getDate();
-      fechaRaw = `${String(year).padStart(4,'0')}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const dt = fechaRaw.toDate();
+      const y = dt.getFullYear(), m = dt.getMonth() + 1, d = dt.getDate();
+      fechaRaw = `${String(y).padStart(4,'0')}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      debug.origenFecha = 'timestamp';
+      debug.fechaNormalized = fechaRaw;
     } catch (e) {
       debug.reason = 'timestamp-toDate-failed';
       return { startISO: null, endISO: null, debug };
     }
-  }
-
-  // Si fechaRaw es string, lidiamos con varios formatos
-  if (typeof fechaRaw === 'string') {
+  } else if (typeof fechaRaw === 'string') {
     fechaRaw = fechaRaw.trim();
-    // Caso más común: "YYYY-MM-DD"
+    debug.origenFecha = 'string';
     if (/^\d{4}-\d{2}-\d{2}$/.test(fechaRaw)) {
-      // ok, seguimos abajo
+      debug.fechaNormalized = fechaRaw;
     } else {
-      // Intentar parsear como ISO completo (p.e. "2025-11-11T00:00:00.000Z")
-      const tryDate = new Date(fechaRaw);
-      if (!isNaN(tryDate)) {
-        const y = tryDate.getFullYear(), m = tryDate.getMonth() + 1, d = tryDate.getDate();
+      // intentar parsear como ISO o cualquier otra fecha reconocible
+      const dt = new Date(fechaRaw);
+      if (!isNaN(dt.getTime())) {
+        const y = dt.getFullYear(), m = dt.getMonth() + 1, d = dt.getDate();
         fechaRaw = `${String(y).padStart(4,'0')}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        debug.parsedDate = tryDate.toISOString();
+        debug.fechaNormalized = fechaRaw;
       } else {
         debug.reason = 'fecha-string-no-parseable';
         return { startISO: null, endISO: null, debug };
       }
     }
   } else {
-    debug.reason = 'fecha-no-string-ni-timestamp';
+    debug.reason = 'fecha-no-proporcionada-o-tipo-desconocido';
     return { startISO: null, endISO: null, debug };
   }
 
-  // Ahora fechaRaw está en formato YYYY-MM-DD (si llegamos hasta aquí)
-  const match = fechaRaw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) { debug.reason = 'fecha-no-matched-after-normalize'; return { startISO: null, endISO: null, debug }; }
-  const year = parseInt(match[1], 10);
-  const month = parseInt(match[2], 10);
-  const day = parseInt(match[3], 10);
-
-  // Parsear la hora con varios intentos
-  let hora24 = null;
-  // 1) try parseTo24Hour (tu helper)
-  try { hora24 = parseTo24Hour(cita.hora); } catch(e) { hora24 = null; }
-  // 2) fallback a parseTimeTo24 (otro helper que ya tienes)
-  if (!hora24) {
-    try { hora24 = parseTimeTo24(cita.hora); } catch(e) { hora24 = null; }
+  // Validar formato final YYYY-MM-DD
+  const mFecha = fechaRaw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!mFecha) {
+    debug.reason = 'fecha-no-matched';
+    return { startISO: null, endISO: null, debug };
   }
-  // 3) si ya es 24h como "13:00" o "7:00" (sin AM/PM)
-  if (!hora24 && typeof cita.hora === 'string') {
-    const hmatch = cita.hora.trim().match(/^(\d{1,2}):(\d{2})$/);
-    if (hmatch) {
-      const hh = String(parseInt(hmatch[1],10)).padStart(2,'0');
-      const mm = String(parseInt(hmatch[2],10)).padStart(2,'0');
-      hora24 = `${hh}:${mm}`;
+  const year = parseInt(mFecha[1], 10);
+  const month = parseInt(mFecha[2], 10);
+  const day = parseInt(mFecha[3], 10);
+
+  // Parse robusto de la hora: soporta "11:00 AM", "7:00 PM", "07:00", "7:00"
+  const horaRaw = (typeof cita.hora === 'string') ? cita.hora.trim() : String(cita.hora || '');
+  debug.horaInput = horaRaw;
+
+  if (!horaRaw) {
+    debug.reason = 'hora-vacia';
+    return { startISO: null, endISO: null, debug };
+  }
+
+  // 1) Intentar 12h con AM/PM
+  let hh = null, mm = null;
+  let m12 = horaRaw.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (m12) {
+    hh = parseInt(m12[1], 10);
+    mm = parseInt(m12[2], 10);
+    const period = m12[3].toUpperCase();
+    if (period === 'PM' && hh !== 12) hh += 12;
+    if (period === 'AM' && hh === 12) hh = 0;
+    debug.horaParsed = `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+  } else {
+    // 2) Intentar formato 24h "HH:MM"
+    const m24 = horaRaw.match(/^(\d{1,2}):(\d{2})$/);
+    if (m24) {
+      hh = parseInt(m24[1], 10);
+      mm = parseInt(m24[2], 10);
+      // validación básica
+      if (hh < 0 || hh > 23 || mm < 0 || mm > 59) {
+        debug.reason = 'hora-fuera-de-rango';
+        return { startISO: null, endISO: null, debug };
+      }
+      debug.horaParsed = `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+    } else {
+      debug.reason = 'hora-no-parseable';
+      return { startISO: null, endISO: null, debug };
     }
   }
 
-  if (!hora24) {
-    debug.reason = 'hora-no-parseable';
-    return { startISO: null, endISO: null, debug };
-  }
-
-  debug.horaParsed = hora24;
-
-  // Construir fecha local usando new Date(year, month-1, day, hh, mm) para evitar parseos ambiguos
-  const [hhNum, mmNum] = hora24.split(':').map(n => parseInt(n, 10));
-  const startDate = new Date(year, month - 1, day, hhNum, mmNum, 0, 0);
+  // Construir Date en hora local (evitar new Date("YYYY-MM-DDTHH:MM") por compatibilidad)
+  const startDate = new Date(year, month - 1, day, hh, mm, 0, 0);
   if (isNaN(startDate.getTime())) {
     debug.reason = 'startDate-NaN';
     return { startISO: null, endISO: null, debug };
   }
-  const endDate = new Date(startDate.getTime() + (40 * 60 * 1000)); // +40 min
+  const endDate = new Date(startDate.getTime() + 40 * 60 * 1000); // +40 minutos
 
-  return { startISO: startDate.toISOString(), endISO: endDate.toISOString(), debug };
+  // startISO/endISO en formato ISO completo (UTC)
+  return {
+    startISO: startDate.toISOString(),
+    endISO: endDate.toISOString(),
+    debug
+  };
 }
 
 /**
