@@ -90,31 +90,38 @@
     <ul id="lista-citas" class="lista-citas" aria-live="polite"></ul>
   </div>
 
-  <!-- Modales -->
-  <div id="modal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="modal-title">
-    <div class="modal-contenido" role="document">
-      <h2 id="modal-title">Agendar Cita</h2>
-      <input type="text" id="nombre" placeholder="Ingrese su nombre y apellido" autocomplete="name">
-      <input type="tel" id="telefono" placeholder="Ingrese su teléfono" autocomplete="tel">
-      <label for="barbero-select">Selecciona barbero:</label>
-      <select id="barbero-select" required>
-      <option value="">Selecciona un barbero</option>
-      </select>
-      <div class="modal-botones">
-        <button id="confirmar-cita" class="btn btn-primary">Confirmar</button>
-        <button id="cancelar-modal" class="btn btn-secondary">Cancelar</button>
-      </div>
-    </div>
-  </div>
+<!-- Modal para agendar cita -->
+<div id="modal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="modal-title">
+  <div class="modal-contenido" role="document">
+    <h2 id="modal-title">Agendar Cita</h2>
 
-  <div id="modal-confirmacion" class="modal" role="dialog" aria-hidden="true">
-    <div class="modal-contenido">
-      <p id="mensaje-confirmacion">Cita agendada correctamente.</p>
-      <div class="modal-botones">
-        <button id="cerrar-confirmacion" class="btn btn-primary">Aceptar</button>
-      </div>
+    <input type="text" id="nombre" placeholder="Ingrese su nombre y apellido" autocomplete="name">
+    <input type="tel" id="telefono" placeholder="Ingrese su teléfono" autocomplete="tel">
+
+    <label for="barbero-select" class="modal-label">Selecciona barbero:</label>
+    <div class="select-container">
+      <select id="barbero-select" class="custom-select" required>
+        <option value="">Selecciona un barbero</option>
+      </select>
+    </div>
+
+    <div class="modal-botones">
+      <button id="confirmar-cita" class="btn btn-primary">Confirmar</button>
+      <button id="cancelar-modal" class="btn btn-secondary">Cancelar</button>
     </div>
   </div>
+</div>
+
+<!-- Modal de confirmación -->
+<div id="modal-confirmacion" class="modal" role="dialog" aria-hidden="true">
+  <div class="modal-contenido">
+    <p id="mensaje-confirmacion">Cita agendada correctamente.</p>
+    <div class="modal-botones">
+      <button id="cerrar-confirmacion" class="btn btn-primary">Aceptar</button>
+    </div>
+  </div>
+</div>
+
 
 <div id="modal-editar" class="modal" role="dialog" aria-hidden="true">
   <div class="modal-contenido">
@@ -124,22 +131,23 @@
     <input type="text" id="editar-telefono" placeholder="Teléfono" autocomplete="tel">
 
     <!-- Nuevo selector de hora -->
-    <label for="editar-hora">Hora:</label>
-    <select id="editar-hora" required>
-      <option value="">Selecciona hora</option>
-      <option value="7:00 AM">7:00 AM</option>
-      <option value="8:00 AM">8:00 AM</option>
-      <option value="9:00 AM">9:00 AM</option>
-      <option value="10:00 AM">10:00 AM</option>
-      <option value="11:00 AM">11:00 AM</option>
-      <option value="12:00 PM">12:00 PM</option>
-      <option value="1:00 PM">1:00 PM</option>
-      <option value="2:00 PM">2:00 PM</option>
-      <option value="3:00 PM">3:00 PM</option>
-      <option value="4:00 PM">4:00 PM</option>
-      <option value="5:00 PM">5:00 PM</option>
-      <option value="6:00 PM">6:00 PM</option>
-    </select>
+<label for="editar-hora">Hora:</label>
+<select id="editar-hora" class="custom-select" required>
+  <option value="">Selecciona hora</option>
+  <option value="7:00 AM">7:00 AM</option>
+  <option value="8:00 AM">8:00 AM</option>
+  <option value="9:00 AM">9:00 AM</option>
+  <option value="10:00 AM">10:00 AM</option>
+  <option value="11:00 AM">11:00 AM</option>
+  <option value="12:00 PM">12:00 PM</option>
+  <option value="1:00 PM">1:00 PM</option>
+  <option value="2:00 PM">2:00 PM</option>
+  <option value="3:00 PM">3:00 PM</option>
+  <option value="4:00 PM">4:00 PM</option>
+  <option value="5:00 PM">5:00 PM</option>
+  <option value="6:00 PM">6:00 PM</option>
+</select>
+
 
     <div class="modal-botones">
       <button id="guardar-edicion" class="btn btn-primary">Guardar</button>
