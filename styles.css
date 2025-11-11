@@ -18,15 +18,17 @@
 html, body {
   width: 100%;
   height: 100%;
+  background: #EBF2F8;
 }
 
 body {
   font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   text-align: center;
-  background: linear-gradient(180deg,#dfe9f3 0%, #ffffff 100%);
   color: #222;
   margin: 0;
   padding: 0;
+  min-height: 100%; 
+  background-color: transparent;
 }
 
 .header {
@@ -476,3 +478,92 @@ body {
   font-weight: 600;
   color: #222;
 }
+
+
+.footer {
+  background: linear-gradient(180deg, #0e0e0e 0%, #1a1a1a 100%);
+  color: #ccc;
+  text-align: center;
+  padding: 25px 0;
+  font-size: 14px;
+  border-top: 1px solid #2a2a2a;
+  margin-top: 40px;
+  box-shadow: 0 -3px 15px rgba(0, 0, 0, 0.3);
+}
+
+.footer-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Logo */
+.footer-logo {
+  width: 70px;
+  opacity: 0.9;
+  margin-bottom: 8px;
+  animation: fadeInUp 1s ease forwards;
+}
+
+/* Animación */
+.footer-brand h2 {
+  font-family: 'Poppins', sans-serif;
+  font-size: 22px;
+  color: #4a90e2;
+  letter-spacing: 1px;
+  margin-bottom: 5px;
+  animation: fadeInUp 0.8s ease forwards;
+}
+
+.footer-brand p {
+  margin: 0;
+  color: #aaa;
+}
+
+.footer-divider {
+  width: 80px;
+  height: 2px;
+  background-color: #4a90e2;
+  border-radius: 2px;
+  margin: 8px 0;
+  opacity: 0.8;
+  transition: all 0.3s ease;
+}
+
+.footer:hover .footer-divider {
+  width: 120px;
+  opacity: 1;
+}
+
+.footer-info p {
+  margin: 0;
+  font-size: 13px;
+  color: #777;
+}
+
+/* Social */
+.footer-socials {
+  margin-top: 10px;
+}
+
+.github-icon {
+  width: 22px;
+  height: 22px;
+  color: #4a90e2;
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.github-icon:hover {
+  color: #00ffa0;
+  transform: scale(1.15);
+}
+
+/* Animación fadeInUp */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
