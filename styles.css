@@ -201,7 +201,7 @@ body {
 }
 .hora-disponible { background: linear-gradient(180deg,#6c757d,#4f5456); color:white; }
 .hora-disponible:hover { transform: translateY(-3px); }
-.hora-ocupada { background: linear-gradient(180deg,#f8d7da,#f1b0b7); color:#3a1a1f; cursor:not-allowed; }
+.hora-ocupada { background: linear-gradient(180deg,var(--danger), #b02a37); color:white;cursor: not-allowed; }
 
 .mobile-only {
   display: none;
