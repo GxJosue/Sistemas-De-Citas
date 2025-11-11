@@ -66,6 +66,28 @@ async function cargarBarberos() {
         select.appendChild(opt);
       });
     }
+
+    // Poblar select de filtro por barbero (si existe)
+    try {
+      const filterBarbero = document.getElementById('filter-barbero');
+      if (filterBarbero) {
+        // limpiar y añadir opción "Todos"
+        filterBarbero.innerHTML = '<option value="all">Todos los barberos</option>';
+        barberos.forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = b.nombre;
+          opt.textContent = b.nombre;
+          filterBarbero.appendChild(opt);
+        });
+        // Si había un valor previamente seleccionado en adminFilters, restaurarlo
+        if (adminFilters.barbero && adminFilters.barbero !== 'all') {
+          filterBarbero.value = adminFilters.barbero;
+        }
+      }
+    } catch (e) {
+      console.debug("No se pudo poblar filter-barbero:", e);
+    }
+
   } catch (err) {
     console.error("Error cargando barberos desde Firestore:", err);
     select.innerHTML = '<option value="">Error cargando barberos</option>';
@@ -95,7 +117,7 @@ let selectedDateISO = null;
 let currentUser = null;
 let isAdmin = false;
 
-const adminFilters = { month: 'all', day: 'all', q: '' };
+const adminFilters = { month: 'all', day: 'all', q: '', barbero: 'all' };
 let latestCitasSnapshot = null;
 
 let adminActionInProgress = false;
@@ -518,6 +540,13 @@ function renderLista(snapshot) {
           if (c.dia !== adminFilters.day) return false;
         }
       }
+
+      // Nuevo: filtro por barbero (exact match por nombre)
+      if (adminFilters.barbero && adminFilters.barbero !== 'all') {
+        if (!c.barbero) return false;
+        if (String(c.barbero).trim() !== adminFilters.barbero) return false;
+      }
+
       if (adminFilters.q && adminFilters.q.trim() !== '') {
         const q = adminFilters.q.trim().toLowerCase();
         const name = (c.nombre || '').toLowerCase();
@@ -564,11 +593,11 @@ function renderLista(snapshot) {
     info.appendChild(metaEl);
     if (telefonoEl.textContent) info.appendChild(telefonoEl);
     if (cita.barbero) {
-  const barberoEl = document.createElement("div");
-  barberoEl.className = "appt-barbero";
-  barberoEl.textContent = `Barbero: ${cita.barbero}`;
-  info.appendChild(barberoEl);
-}
+      const barberoEl = document.createElement("div");
+      barberoEl.className = "appt-barbero";
+      barberoEl.textContent = `Barbero: ${cita.barbero}`;
+      info.appendChild(barberoEl);
+    }
     const accionesWrapper = document.createElement("div");
     accionesWrapper.className = "appt-actions";
     if (cita.userId === (currentUser && currentUser.uid)) {
@@ -964,15 +993,26 @@ document.addEventListener("DOMContentLoaded", () => {
   const filterDay = document.getElementById('filter-day');
   const filterQ = document.getElementById('filter-q');
   const filterClear = document.getElementById('filter-clear');
+  const filterBarbero = document.getElementById('filter-barbero');
 
+  // Listeners de filtros (incluye barbero)
+  if (filterBarbero) {
+    filterBarbero.addEventListener('change', (e) => {
+      adminFilters.barbero = e.target.value;
+      if (latestCitasSnapshot) renderLista(latestCitasSnapshot);
+    });
+  }
   if (filterMonth) filterMonth.addEventListener('change', (e) => { adminFilters.month = e.target.value; if (latestCitasSnapshot) renderLista(latestCitasSnapshot); });
   if (filterDay) filterDay.addEventListener('change', (e) => { adminFilters.day = e.target.value; if (latestCitasSnapshot) renderLista(latestCitasSnapshot); });
   if (filterQ) filterQ.addEventListener('input', (e) => { adminFilters.q = e.target.value; if (latestCitasSnapshot) renderLista(latestCitasSnapshot); });
+
+  // Ajustar el botón limpiar para resetear también el filtro de barbero
   if (filterClear) filterClear.addEventListener('click', () => {
-    adminFilters.month = 'all'; adminFilters.day = 'all'; adminFilters.q = '';
+    adminFilters.month = 'all'; adminFilters.day = 'all'; adminFilters.q = ''; adminFilters.barbero = 'all';
     if (filterMonth) filterMonth.value = 'all';
     if (filterDay) filterDay.value = 'all';
     if (filterQ) filterQ.value = '';
+    if (filterBarbero) filterBarbero.value = 'all';
     if (latestCitasSnapshot) renderLista(latestCitasSnapshot);
   });
 
@@ -995,17 +1035,21 @@ document.addEventListener("DOMContentLoaded", () => {
     filtersApply.addEventListener('click', () => {
       const selMonth = filtersModalContent.querySelector('#filter-month');
       const selDay = filtersModalContent.querySelector('#filter-day');
+      const selBarbero = filtersModalContent.querySelector('#filter-barbero');
       const inputQ = filtersModalContent.querySelector('#filter-q');
       const realMonth = document.getElementById('filter-month');
       const realDay = document.getElementById('filter-day');
+      const realBarbero = document.getElementById('filter-barbero');
       const realQ = document.getElementById('filter-q');
       if (selMonth && realMonth) realMonth.value = selMonth.value;
       if (selDay && realDay) realDay.value = selDay.value;
+      if (selBarbero && realBarbero) realBarbero.value = selBarbero.value;
       if (inputQ && realQ) realQ.value = inputQ.value;
       const evChange = new Event('change', { bubbles: true });
       const evInput = new Event('input', { bubbles: true });
       if (realMonth) realMonth.dispatchEvent(evChange);
       if (realDay) realDay.dispatchEvent(evChange);
+      if (realBarbero) realBarbero.dispatchEvent(evChange);
       if (realQ) realQ.dispatchEvent(evInput);
       closeModal('modal-admin-filters');
     });
@@ -1031,7 +1075,6 @@ onAuthStateChanged(auth, async (user) => {
   startHorariosListener(diaSeleccionado || Object.keys(horarios)[0]);
   startListaListener();
 });
-
 
 // ---- Reemplazo robusto del listener de sincronización con Make (cálculo seguro de startISO/endISO) ----
 

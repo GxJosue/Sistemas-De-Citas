@@ -81,6 +81,12 @@
           <option value="Domingo">Domingo</option>
         </select>
 
+        <!-- Nuevo: filtro por barbero -->
+        <select id="filter-barbero" class="filter-control" aria-label="Filtrar por barbero">
+          <option value="all">Todos los barberos</option>
+          <!-- Opciones dinamicas desde script.js -->
+        </select>
+
         <input id="filter-q" class="filter-control" type="text" placeholder="Buscar por nombre, teléfono o userId" aria-label="Buscar citas">
 
         <button id="filter-clear" class="btn btn-secondary">Limpiar</button>
@@ -266,7 +272,5 @@
     </div>
   </div>
 </footer>
-
-
 </body>
 </html>
