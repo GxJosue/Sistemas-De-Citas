@@ -849,3 +849,68 @@ onAuthStateChanged(auth, async (user) => {
   startHorariosListener(diaSeleccionado || Object.keys(horarios)[0]);
   startListaListener();
 });
+
+
+// Sincronización con Make (Webhook)
+const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/ad90opvmdluf71f4npzpwfnzbjs0ayw7";
+
+const citasRef = collection(db, "citas");
+
+// Función auxiliar para convertir hora AM/PM a formato 24h
+function parseTo24Hour(hora) {
+  const match = hora.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let [_, h, m, period] = match;
+  h = parseInt(h);
+  if (period.toUpperCase() === "PM" && h !== 12) h += 12;
+  if (period.toUpperCase() === "AM" && h === 12) h = 0;
+  return `${String(h).padStart(2, "0")}:${m}`;
+}
+
+// Evita bucles infinitos
+let lastSyncTime = 0;
+
+onSnapshot(citasRef, (snapshot) => {
+  const now = Date.now();
+  if (now - lastSyncTime < 1000) return;
+  lastSyncTime = now;
+
+  snapshot.docChanges().forEach((change) => {
+    const cita = change.doc.data();
+    const id = change.doc.id;
+
+    let action = "";
+    if (change.type === "added") action = "create";
+    if (change.type === "modified") action = "update";
+    if (change.type === "removed") action = "delete";
+
+    // Si la cita tiene fecha y hora, generamos los tiempos ISO
+    let startISO = null;
+    let endISO = null;
+
+    if (cita.fecha && cita.hora) {
+      const hora24 = parseTo24Hour(cita.hora);
+      if (hora24) {
+        const [hh, mm] = hora24.split(":").map(Number);
+        const start = new Date(`${cita.fecha}T${hora24}:00`);
+        const end = new Date(start.getTime() + 40 * 60 * 1000); // +40 min
+        startISO = start.toISOString();
+        endISO = end.toISOString();
+      }
+    }
+
+    // Enviar a Make
+    fetch(MAKE_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action,
+        id,
+        cita,
+        startISO,
+        endISO
+      }),
+    }).catch(err => console.error("Error enviando a Make:", err));
+  });
+});
+
