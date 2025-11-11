@@ -116,17 +116,38 @@
     </div>
   </div>
 
-  <div id="modal-editar" class="modal" role="dialog" aria-hidden="true">
-    <div class="modal-contenido">
-      <p>Editar cita</p>
-      <input type="text" id="editar-nombre" placeholder="Nombre" autocomplete="name">
-      <input type="text" id="editar-telefono" placeholder="Teléfono" autocomplete="tel">
-      <div class="modal-botones">
-        <button id="guardar-edicion" class="btn btn-primary">Guardar</button>
-        <button id="cancelar-edicion" class="btn btn-secondary">Cancelar</button>
-      </div>
+<div id="modal-editar" class="modal" role="dialog" aria-hidden="true">
+  <div class="modal-contenido">
+    <p>Editar cita</p>
+
+    <input type="text" id="editar-nombre" placeholder="Nombre" autocomplete="name">
+    <input type="text" id="editar-telefono" placeholder="Teléfono" autocomplete="tel">
+
+    <!-- Nuevo selector de hora -->
+    <label for="editar-hora">Hora:</label>
+    <select id="editar-hora" required>
+      <option value="">Selecciona hora</option>
+      <option value="7:00 AM">7:00 AM</option>
+      <option value="8:00 AM">8:00 AM</option>
+      <option value="9:00 AM">9:00 AM</option>
+      <option value="10:00 AM">10:00 AM</option>
+      <option value="11:00 AM">11:00 AM</option>
+      <option value="12:00 PM">12:00 PM</option>
+      <option value="1:00 PM">1:00 PM</option>
+      <option value="2:00 PM">2:00 PM</option>
+      <option value="3:00 PM">3:00 PM</option>
+      <option value="4:00 PM">4:00 PM</option>
+      <option value="5:00 PM">5:00 PM</option>
+      <option value="6:00 PM">6:00 PM</option>
+    </select>
+
+    <div class="modal-botones">
+      <button id="guardar-edicion" class="btn btn-primary">Guardar</button>
+      <button id="cancelar-edicion" class="btn btn-secondary">Cancelar</button>
     </div>
   </div>
+</div>
+
 
   <div id="modal-confirmacion-edicion" class="modal" role="dialog" aria-hidden="true">
     <div class="modal-contenido">

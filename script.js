@@ -430,7 +430,7 @@ async function confirmarCita() {
   const diaName = diaSeleccionado;
   const ocupado = await isSlotTaken(barbero, fechaIso, diaName, horaSeleccionada);
   if (ocupado) {
-    showToast("Horario ocupado para el barbero seleccionado. Elige otro horario o barbero.", "error");
+    showToast("Horario ocupado para el barbero seleccionado. RECARGUE LA PÁGINA y elija otro horario o barbero.", "error");
     return;
   }
 
@@ -620,34 +620,79 @@ function abrirModalEditar(id, cita) {
   const modalEditar = document.getElementById("modal-editar");
   const nombreInput = document.getElementById("editar-nombre");
   const telefonoInput = document.getElementById("editar-telefono");
+  const horaSelect = document.getElementById("editar-hora"); // ← nuevo campo de hora
+
   const btnGuardar = document.getElementById("guardar-edicion");
   const btnCancelar = document.getElementById("cancelar-edicion");
   const btnCerrarConfirmacion = document.getElementById("cerrar-confirmacion-edicion");
-  if (!modalEditar || !nombreInput || !telefonoInput || !btnGuardar || !btnCancelar) { console.error("Elementos modal editar faltan"); return; }
+
+  // Validar que todos los elementos existan
+  if (!modalEditar || !nombreInput || !telefonoInput || !horaSelect || !btnGuardar || !btnCancelar) {
+    console.error("Elementos del modal de edición faltan");
+    return;
+  }
+
+  // Abrir el modal
   openModal("modal-editar");
+
+  // Precargar los datos existentes de la cita
   nombreInput.value = cita.nombre || "";
   telefonoInput.value = cita.telefono || "";
+  horaSelect.value = cita.hora || ""; // ← muestra la hora actual de la cita
+
+  // Clonar botones para evitar duplicar listeners anteriores
   btnGuardar.replaceWith(btnGuardar.cloneNode(true));
   btnCancelar.replaceWith(btnCancelar.cloneNode(true));
-  btnCerrarConfirmacion.replaceWith(btnCerrarConfirmacion.cloneNode(true));
+  if (btnCerrarConfirmacion) btnCerrarConfirmacion.replaceWith(btnCerrarConfirmacion.cloneNode(true));
+
+  // Volver a capturar los nuevos botones clonados
   const nuevoBtnGuardar = document.getElementById("guardar-edicion");
   const nuevoBtnCancelar = document.getElementById("cancelar-edicion");
   const nuevoBtnCerrarConfirmacion = document.getElementById("cerrar-confirmacion-edicion");
+
+  // Guardar cambios
   nuevoBtnGuardar.addEventListener("click", async function () {
+    const nombre = nombreInput.value.trim();
+    const telefono = telefonoInput.value.trim();
+    const hora = horaSelect.value.trim();
+
+    if (!nombre || !telefono || !hora) {
+      showToast("Completa todos los campos antes de guardar.", "warning");
+      return;
+    }
+
     try {
       const citaRef = doc(db, "citas", id);
-      await updateDoc(citaRef, { nombre: nombreInput.value, telefono: telefonoInput.value });
+      await updateDoc(citaRef, {
+        nombre,
+        telefono,
+        hora
+      });
+
       closeModal("modal-editar");
-      showToast("Cita actualizada", "success");
-      openModal("modal-confirmacion-edicion");
+      showToast("Cita actualizada correctamente.", "success");
+
+      // Si tienes una confirmación visual, puedes abrirla aquí
+      if (nuevoBtnCerrarConfirmacion) openModal("modal-confirmacion-edicion");
     } catch (error) {
       console.error("Error al actualizar la cita:", error);
       showToast("Error actualizando cita", "error");
     }
   });
-  nuevoBtnCancelar.addEventListener("click", function () { closeModal("modal-editar"); });
-  nuevoBtnCerrarConfirmacion.addEventListener("click", function () { closeModal("modal-confirmacion-edicion"); });
+
+  // Cancelar edición
+  nuevoBtnCancelar.addEventListener("click", function () {
+    closeModal("modal-editar");
+  });
+
+  // Cerrar confirmación (si existe)
+  if (nuevoBtnCerrarConfirmacion) {
+    nuevoBtnCerrarConfirmacion.addEventListener("click", function () {
+      closeModal("modal-confirmacion-edicion");
+    });
+  }
 }
+
 function eliminarCita(id) {
   const modalEliminar = document.getElementById("modal-eliminar");
   if (!modalEliminar) return;
