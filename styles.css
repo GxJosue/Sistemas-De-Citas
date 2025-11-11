@@ -384,13 +384,13 @@ body {
   align-items: center;
   width: 100%;
   max-width: calc(100% - 40px);
-  pointer-events: none; /* permite clicks pasar por debajo excepto en el toast */
+  pointer-events: none; 
   padding: 0 10px;
   box-sizing: border-box;
 }
 
 .toast {
-  pointer-events: auto; /* permitir interacción dentro del toast si hay botones */
+  pointer-events: auto; 
   width: 100%;
   max-width: 520px;
   background: #222;
@@ -420,7 +420,7 @@ body {
   .toast { padding: 10px 12px; max-width: 420px; font-size: 0.95rem; }
 }
 
-/* Ajustes finos */
+
 .appt-phone-small { display:block; margin-top:6px; color:var(--muted); font-size:0.95rem; }
 
 .appt-barbero {

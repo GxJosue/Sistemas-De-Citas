@@ -23,7 +23,7 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-// Lista global de barberos (nombres)
+// Lista global de barberos
 let barberosList = [];
 
 async function cargarBarberos() {
@@ -41,7 +41,7 @@ async function cargarBarberos() {
       const nombre = (data.nombre && String(data.nombre).trim()) ||
                      (data.name && String(data.name).trim()) ||
                      docSnap.id;
-      // si activo no está definido asumimos true (muchos documentos pueden no tenerlo)
+      
       const activo = (typeof data.activo === 'undefined') ? true : Boolean(data.activo);
       if (activo && nombre) {
         barberos.push({ id: docSnap.id, nombre });
@@ -50,7 +50,7 @@ async function cargarBarberos() {
     // orden alfabético para mejor UX
     barberos.sort((a, b) => a.nombre.localeCompare(b.nombre, undefined, { sensitivity: 'base' }));
 
-    // actualizar la lista global de barberos (solo nombres)
+    // actualizar la lista global de barberos 
     barberosList = barberos.map(b => b.nombre);
 
     // render opciones
@@ -672,7 +672,7 @@ function abrirModalEditar(id, cita) {
       closeModal("modal-editar");
       showToast("Cita actualizada correctamente.", "success");
 
-      // Si tienes una confirmación visual, puedes abrirla aquí
+      
       if (nuevoBtnCerrarConfirmacion) openModal("modal-confirmacion-edicion");
     } catch (error) {
       console.error("Error al actualizar la cita:", error);
@@ -685,7 +685,7 @@ function abrirModalEditar(id, cita) {
     closeModal("modal-editar");
   });
 
-  // Cerrar confirmación (si existe)
+  // Cerrar confirmación 
   if (nuevoBtnCerrarConfirmacion) {
     nuevoBtnCerrarConfirmacion.addEventListener("click", function () {
       closeModal("modal-confirmacion-edicion");
