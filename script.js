@@ -91,8 +91,6 @@ async function cargarBarberos() {
   } catch (err) {
     console.error("Error cargando barberos desde Firestore:", err);
     select.innerHTML = '<option value="">Error cargando barberos</option>';
-    // mostrar toast si la función está disponible
-    try { showToast("No se pudieron cargar los barberos (revisa la consola)", "error", 5000); } catch(e) {}
   }
 }
 
