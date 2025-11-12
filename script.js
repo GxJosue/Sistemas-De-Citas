@@ -452,7 +452,7 @@ async function confirmarCita() {
   const diaName = diaSeleccionado;
   const ocupado = await isSlotTaken(barbero, fechaIso, diaName, horaSeleccionada);
   if (ocupado) {
-    showToast("Horario ocupado para el barbero seleccionado. RECARGUE LA PÁGINA y elija otro horario o barbero.", "error");
+    showToast("Horario ocupado para el barbero seleccionado. Elija otro horario o barbero.", "error");
     return;
   }
 
@@ -808,11 +808,37 @@ function resetearTodasLasCitas() {
 }
 
 /* ---------- Autenticación y UI de auth ---------- */
+// Reemplaza tu doLogin actual por esta versión
 async function doLogin() {
-  try { await signInWithPopup(auth, provider); } catch (err) { console.error("Error en login:", err); showToast("Error al iniciar sesión", "error"); }
+  try {
+    await signInWithPopup(auth, provider);
+    // Marcar en sessionStorage que acabamos de iniciar sesión en esta sesión
+    // y forzar un reload para que toda la UI (listeners, consultas, selects) se
+    // inicialicen con el usuario ya autenticado.
+    try {
+      sessionStorage.setItem('reloaded_after_login', '1');
+    } catch (e) {
+      // si sessionStorage no está disponible, seguimos sin la marca
+      console.warn("sessionStorage no disponible para marcar reload:", e);
+    }
+    // pequeña espera para que se cierre el popup y la promesa haya "settled"
+    setTimeout(() => {
+      location.reload();
+    }, 80);
+  } catch (err) {
+    console.error("Error en login:", err);
+    showToast("Error al iniciar sesión", "error");
+  }
 }
 async function doLogout() {
-  try { await signOut(auth); showToast("Sesión cerrada", "success"); } catch (err) { console.error("Error en logout:", err); showToast("Error cerrando sesión", "error"); }
+  try {
+    await signOut(auth);
+    try { sessionStorage.removeItem('reloaded_after_login'); } catch(e) {}
+    showToast("Sesión cerrada", "success");
+  } catch (err) {
+    console.error("Error en logout:", err);
+    showToast("Error cerrando sesión", "error");
+  }
 }
 async function checkAdminStatus(uid) {
   if (!uid) return false;
@@ -915,6 +941,15 @@ function updateAuthUI(user, adminFlag) {
 
 /* ---------- Inicialización y bindings ---------- */
 document.addEventListener("DOMContentLoaded", () => {
+  // Si venimos de un login y la página fue recargada, borrar la marca para evitar futuros reloads
+try {
+  if (sessionStorage.getItem('reloaded_after_login')) {
+    sessionStorage.removeItem('reloaded_after_login');
+    console.debug("reloaded_after_login flag removed on load");
+  }
+} catch (e) {
+  // no crítico
+}
   cargarBarberos();
   const today = new Date();
   renderCalendar(today.getFullYear(), today.getMonth());
