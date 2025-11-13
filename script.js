@@ -26,6 +26,22 @@ const provider = new GoogleAuthProvider();
 // Lista global de barberos
 let barberosList = [];
 
+
+const CLIENT_ID_KEY = 'appointments_client_id';
+let CLIENT_ID = null;
+try {
+  CLIENT_ID = sessionStorage.getItem(CLIENT_ID_KEY);
+  if (!CLIENT_ID) {
+    CLIENT_ID = 'c_' + Math.random().toString(36).slice(2, 12);
+    sessionStorage.setItem(CLIENT_ID_KEY, CLIENT_ID);
+  }
+  console.debug("CLIENT_ID:", CLIENT_ID);
+} catch (e) {
+  // si sessionStorage no está disponible, fallback a id temporal en memoria
+  CLIENT_ID = 'c_' + Math.random().toString(36).slice(2, 12);
+  console.warn("sessionStorage no disponible, usando CLIENT_ID temporal:", CLIENT_ID);
+}
+
 async function cargarBarberos() {
   const select = document.getElementById("barbero-select");
   if (!select) return;
@@ -454,8 +470,17 @@ async function confirmarCita() {
     return;
   }
 
-  const cita = { dia: diaSeleccionado, hora: horaSeleccionada, nombre, telefono, barbero, userId: currentUser.uid, createdAt: new Date().toISOString() };
-  if (diaCitaSeleccionado && /^\d{4}-\d{2}-\d{2}$/.test(diaCitaSeleccionado)) cita.fecha = diaCitaSeleccionado;
+const cita = {
+  dia: diaSeleccionado,
+  hora: horaSeleccionada,
+  nombre,
+  telefono,
+  barbero,
+  userId: currentUser ? currentUser.uid : null,
+  createdAt: new Date().toISOString(),
+  createdByClient: CLIENT_ID // <-- añadido: identifica el cliente que creó el doc
+};
+if (diaCitaSeleccionado && /^\d{4}-\d{2}-\d{2}$/.test(diaCitaSeleccionado)) cita.fecha = diaCitaSeleccionado;
   try {
     await addDoc(collection(db, "citas"), cita);
     // resetear selección del barbero para que no quede "guardada"
@@ -1356,27 +1381,24 @@ onSnapshot(citasRef, { includeMetadataChanges: true }, (snapshot) => {
       if (change.type === "modified") action = "update";
       if (change.type === "removed") action = "delete";
 
-      // Si es la snapshot inicial, NO enviamos webhooks por los docs ya existentes.
-      // Pero sí creamos el watcher en caso de hasPendingWrites (muy raro en la inicial).
+      // En la snapshot inicial NO enviamos webhooks por docs existentes.
       if (isInitialSnapshot) {
         if (meta.hasPendingWrites) {
+          // raro en snapshot inicial, pero si hay pendingWrites creamos watcher
           console.debug(`(Inicial) Doc ${id} tiene hasPendingWrites=true. Creando watcher...`);
           const docRef = change.doc.ref;
           const creatorEmail = (typeof currentUser !== 'undefined' && currentUser && currentUser.email) ? currentUser.email : null;
-          watchDocUntilSynced(docRef, action, id, cita, 15000, { userEmail: creatorEmail });
-        } else {
-          // Saltamos envío directo para documentos existentes en la carga inicial
-          // console.debug(`(Inicial) Saltando envío para doc existente ${id}`);
+          watchDocUntilSynced(docRef, action, id, cita, 15000, { userEmail: creatorEmail, createdByClient: (cita && cita.createdByClient) || null });
         }
         return;
       }
 
-      // Si el doc tiene pendingWrites (es local), creamos un watcher (en este cliente) para esperar confirmación.
+      // Si tiene pendingWrites (es local), el cliente creador ya creará un watcher para enviar el webhook
       if (meta.hasPendingWrites) {
         console.debug(`Doc ${id} tiene hasPendingWrites=true (action=${action}). Creando watcher...`);
         const docRef = change.doc.ref;
         const creatorEmail = (typeof currentUser !== 'undefined' && currentUser && currentUser.email) ? currentUser.email : null;
-        watchDocUntilSynced(docRef, action, id, cita, 15000, { userEmail: creatorEmail });
+        watchDocUntilSynced(docRef, action, id, cita, 15000, { userEmail: creatorEmail, createdByClient: (cita && cita.createdByClient) || null });
         return;
       }
 
@@ -1389,23 +1411,28 @@ onSnapshot(citasRef, { includeMetadataChanges: true }, (snapshot) => {
         return;
       }
 
-      // Evitar que clientes que NO son el creador envíen el webhook.
-      const docUserId = cita && cita.userId ? String(cita.userId) : null;
-      if (docUserId && currentUser && docUserId !== currentUser.uid) {
-        console.debug(`Este cliente (${currentUser.uid}) no es el creador (${docUserId}) de ${id}, saltando envío directo.`);
+      // NUEVO: sólo permitir envío directo si la cita fue creada por ESTE cliente
+      const docClientId = cita && cita.createdByClient ? String(cita.createdByClient) : null;
+      if (!docClientId) {
+        // Si no existe createdByClient (documentos viejos), para mayor seguridad NO enviar desde clientes nuevos.
+        // Esto evita reenvíos desde múltiples dispositivos si comparten userId.
+        console.debug(`Doc ${id} no tiene createdByClient; saltando envío directo (posible doc antiguo).`);
+        return;
+      }
+      if (docClientId !== CLIENT_ID) {
+        console.debug(`Doc ${id} fue creado por otro cliente (${docClientId}), este cliente (${CLIENT_ID}) no enviará el webhook.`);
         return;
       }
 
-      // Preparar extraMeta con email si está disponible
-      const extraMeta = {};
+      // Llegamos aquí: este cliente es el creador registrado -> enviar
+      const extraMeta = { reason: 'direct' };
       if (currentUser && currentUser.email) extraMeta.userEmail = currentUser.email;
-      extraMeta.reason = 'direct';
 
-      // Marcar como enviado en cache y limpiarlo pasados unos segundos
+      // Marcar como enviado y limpiar después
       sentWebhookCache.set(id, now);
       setTimeout(() => sentWebhookCache.delete(id), DUP_WINDOW_MS + 2000);
 
-      console.debug(`Doc ${id} confirmado por servidor, enviando webhook (action=${action}) desde cliente ${currentUser ? currentUser.uid : 'anon'}`);
+      console.debug(`Doc ${id} confirmado por servidor, enviando webhook (action=${action}) desde client ${CLIENT_ID}`);
       processAndSendWebhook(action, id, cita, extraMeta);
 
     } catch (err) {
@@ -1413,7 +1440,6 @@ onSnapshot(citasRef, { includeMetadataChanges: true }, (snapshot) => {
     }
   });
 
-  // Tras procesar la primera snapshot, marcamos que ya inicializamos para futuros cambios
   if (isInitialSnapshot) {
     citasListenerInitialized = true;
     console.debug("citasRef: snapshot inicial procesada — futuras changes se enviarán normalmente");
