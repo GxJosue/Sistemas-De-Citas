@@ -1298,7 +1298,8 @@ function processAndSendWebhook(action, id, citaData, extraMeta = {}) {
 // Mantén la lógica de watchers si usabas hasPendingWrites
 const pendingDocWatchers = new Map();
 
-function watchDocUntilSynced(docRef, initialAction, initialId, initialCita, timeoutMs = 15000) {
+
+function watchDocUntilSynced(docRef, initialAction, initialId, initialCita, timeoutMs = 15000, extraMeta = {}) {
   const id = initialId;
   if (pendingDocWatchers.has(id)) return;
 
@@ -1306,8 +1307,10 @@ function watchDocUntilSynced(docRef, initialAction, initialId, initialCita, time
     try {
       const meta = docSnap.metadata || {};
       if (meta.hasPendingWrites === false) {
+        // usamos el doc confirmado por servidor si existe, si no usamos initialCita
         const data = docSnap.exists() ? docSnap.data() : initialCita;
-        processAndSendWebhook(initialAction, id, data, { reason: 'synced-event' });
+        // añadimos reason y también el extraMeta (p. ej. userEmail)
+        processAndSendWebhook(initialAction, id, data, Object.assign({ reason: 'synced-event' }, extraMeta));
         const stored = pendingDocWatchers.get(id);
         if (stored) {
           clearTimeout(stored.timeoutId);
@@ -1326,9 +1329,10 @@ function watchDocUntilSynced(docRef, initialAction, initialId, initialCita, time
     try {
       getDoc(docRef).then(docSnap => {
         const data = docSnap.exists() ? docSnap.data() : initialCita;
-        processAndSendWebhook(initialAction, id, data, { reason: 'timeout-fallback' });
+        // fallback por timeout: también enviamos extraMeta
+        processAndSendWebhook(initialAction, id, data, Object.assign({ reason: 'timeout-fallback' }, extraMeta));
       }).catch(err => {
-        processAndSendWebhook(initialAction, id, initialCita, { reason: 'timeout-fallback-getdoc-failed' });
+        processAndSendWebhook(initialAction, id, initialCita, Object.assign({ reason: 'timeout-fallback-getdoc-failed' }, extraMeta));
       });
     } finally {
       const stored = pendingDocWatchers.get(id);
@@ -1357,7 +1361,8 @@ onSnapshot(citasRef, { includeMetadataChanges: true }, (snapshot) => {
       if (meta.hasPendingWrites) {
         console.debug(`Doc ${id} tiene hasPendingWrites=true (action=${action}). Creando watcher...`);
         const docRef = change.doc.ref;
-        watchDocUntilSynced(docRef, action, id, cita, 15000);
+        const creatorEmail = (typeof currentUser !== 'undefined' && currentUser && currentUser.email) ? currentUser.email : null;
+        watchDocUntilSynced(docRef, action, id, cita, 15000, { userEmail: creatorEmail });
         return;
       }
 
