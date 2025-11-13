@@ -1298,6 +1298,7 @@ function processAndSendWebhook(action, id, citaData, extraMeta = {}) {
 // Mantén la lógica de watchers si usabas hasPendingWrites
 const pendingDocWatchers = new Map();
 const sentWebhookCache = new Map();
+let citasListenerInitialized = false;
 
 
 function watchDocUntilSynced(docRef, initialAction, initialId, initialCita, timeoutMs = 15000, extraMeta = {}) {
@@ -1344,6 +1345,7 @@ function watchDocUntilSynced(docRef, initialAction, initialId, initialCita, time
   pendingDocWatchers.set(id, { unsub, timeoutId });
 }
 onSnapshot(citasRef, { includeMetadataChanges: true }, (snapshot) => {
+  const isInitialSnapshot = !citasListenerInitialized;
   snapshot.docChanges().forEach((change) => {
     try {
       const id = change.doc.id;
@@ -1354,54 +1356,68 @@ onSnapshot(citasRef, { includeMetadataChanges: true }, (snapshot) => {
       if (change.type === "modified") action = "update";
       if (change.type === "removed") action = "delete";
 
+      // Si es la snapshot inicial, NO enviamos webhooks por los docs ya existentes.
+      // Pero sí creamos el watcher en caso de hasPendingWrites (muy raro en la inicial).
+      if (isInitialSnapshot) {
+        if (meta.hasPendingWrites) {
+          console.debug(`(Inicial) Doc ${id} tiene hasPendingWrites=true. Creando watcher...`);
+          const docRef = change.doc.ref;
+          const creatorEmail = (typeof currentUser !== 'undefined' && currentUser && currentUser.email) ? currentUser.email : null;
+          watchDocUntilSynced(docRef, action, id, cita, 15000, { userEmail: creatorEmail });
+        } else {
+          // Saltamos envío directo para documentos existentes en la carga inicial
+          // console.debug(`(Inicial) Saltando envío para doc existente ${id}`);
+        }
+        return;
+      }
+
       // Si el doc tiene pendingWrites (es local), creamos un watcher (en este cliente) para esperar confirmación.
       if (meta.hasPendingWrites) {
         console.debug(`Doc ${id} tiene hasPendingWrites=true (action=${action}). Creando watcher...`);
         const docRef = change.doc.ref;
-        // Capturamos el email del user que hizo la escritura (si está disponible en este cliente)
         const creatorEmail = (typeof currentUser !== 'undefined' && currentUser && currentUser.email) ? currentUser.email : null;
-        // Pasamos el email como extraMeta para que el watcher lo use al enviar el webhook
         watchDocUntilSynced(docRef, action, id, cita, 15000, { userEmail: creatorEmail });
         return;
       }
 
-      // Antes de enviar directamente desde este cliente, evitamos duplicados:
-      // - Si ya enviamos el webhook recientemente para este id (cache), no enviamos.
+      // Evitar envíos duplicados en ventana corta (cache in-memory)
       const lastSent = sentWebhookCache.get(id);
       const now = Date.now();
-      const DUP_WINDOW_MS = 10000; // 10 segundos de tolerancia para evitar envíos duplicados
+      const DUP_WINDOW_MS = 10000; // 10 s
       if (lastSent && (now - lastSent) < DUP_WINDOW_MS) {
         console.debug(`Saltando envío de webhook para ${id} porque ya fue enviado hace ${(now - lastSent)}ms`);
         return;
       }
 
-      // Lógica para evitar que otros clientes (no-creadores) envíen el webhook:
-      // Si el documento tiene userId (quien creó la cita) y no coincide con el currentUser de este cliente,
-      // entonces NO enviamos: el cliente creador (que creó el watcher) será el que envíe.
+      // Evitar que clientes que NO son el creador envíen el webhook.
       const docUserId = cita && cita.userId ? String(cita.userId) : null;
       if (docUserId && currentUser && docUserId !== currentUser.uid) {
         console.debug(`Este cliente (${currentUser.uid}) no es el creador (${docUserId}) de ${id}, saltando envío directo.`);
         return;
       }
 
-      // Si llegamos aquí, enviamos el webhook "directo".
-      // Intentamos agregar userEmail al meta cuando sea posible (si el currentUser es el creador)
+      // Preparar extraMeta con email si está disponible
       const extraMeta = {};
       if (currentUser && currentUser.email) extraMeta.userEmail = currentUser.email;
       extraMeta.reason = 'direct';
 
-      // Marcar como enviado (antes de enviar) para reducir la probabilidad de race conditions
+      // Marcar como enviado en cache y limpiarlo pasados unos segundos
       sentWebhookCache.set(id, now);
-      // Limpiar la cache pasada la ventana (evitar crecimiento indefinido)
       setTimeout(() => sentWebhookCache.delete(id), DUP_WINDOW_MS + 2000);
 
-      console.debug(`Doc ${id} confirmado por servidor, enviando webhook (action=${action}) desde cliente ${currentUser ? currentUser.uid : 'anon'})`);
+      console.debug(`Doc ${id} confirmado por servidor, enviando webhook (action=${action}) desde cliente ${currentUser ? currentUser.uid : 'anon'}`);
       processAndSendWebhook(action, id, cita, extraMeta);
 
     } catch (err) {
       console.error("Error procesando change en snapshot:", err);
     }
   });
+
+  // Tras procesar la primera snapshot, marcamos que ya inicializamos para futuros cambios
+  if (isInitialSnapshot) {
+    citasListenerInitialized = true;
+    console.debug("citasRef: snapshot inicial procesada — futuras changes se enviarán normalmente");
+  }
 }, (error) => {
   console.error("Error en snapshot de citas:", error);
 });
